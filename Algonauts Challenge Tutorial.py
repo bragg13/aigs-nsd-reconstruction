@@ -1,4 +1,5 @@
-# %% import libraries
+# %%
+# import libraries
 import os
 import numpy as np
 from pathlib import Path
@@ -16,11 +17,11 @@ from sklearn.decomposition import IncrementalPCA
 from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr as corr
 
-# %% download the dataset
+# download the dataset
 data_dir = './data'
 subject = 3
 
-# %% class to load and store data
+# class to load and store data
 class argObj:
   def __init__(self, data_dir, subj):
     self.subj = format(subj, '02')
@@ -28,7 +29,7 @@ class argObj:
 
 args = argObj(data_dir, subject)
 
-# %% load the dataset
+# load the dataset
 fmri_dir = os.path.join(args.data_dir, 'training_split', 'training_fmri')
 lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
 rh_fmri = np.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
@@ -41,7 +42,7 @@ print('\nRH training fMRI data shape:')
 print(rh_fmri.shape)
 print('(Training stimulus images × RH vertices)')
 
-# %% load images and define some params
+# load images and define some params
 hemispheres = ['left', 'right']
 roi = ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"]
 img = 0
@@ -56,7 +57,7 @@ train_img_list.sort()
 test_img_list = os.listdir(test_img_dir)
 test_img_list.sort()
 
-# %% show smth
+# show smth
 def visualisation_brain_and_image(img=0, hemisphere='left', roi='V1v'):
     # Load the image
     img_dir = os.path.join(train_img_dir, train_img_list[img])
@@ -122,6 +123,18 @@ def visualisation_brain_and_image(img=0, hemisphere='left', roi='V1v'):
         )
     return view
 
-# Visualise the brain surface map and the image
+# %% Visualise the brain surface map and the image
 view = visualisation_brain_and_image(img=img, hemisphere='left', roi='V1v')
 view.open_in_browser()
+
+# %% coco load
+# from pycocotools.coco import COCO
+# import numpy as np
+# import skimage.io as io
+# import matplotlib.pyplot as plt
+# import pylab
+# pylab.rcParams['figure.figsize'] = (8.0, 10.0)
+# dataDir='..'
+# dataType='val2017'
+# annFile='{}/annotations/instances_{}.json'.format(dataDir,dataType)
+# coco=COCO(annFile)
