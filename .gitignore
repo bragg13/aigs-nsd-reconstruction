@@ -2,3 +2,4 @@ myenv/
 .venv-aigs/
 data/
 .DS_Store
+annotations/

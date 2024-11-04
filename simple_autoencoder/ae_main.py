@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Main file for running the VAE example.
+"""Main file for running the AE example.
 
 This file is intentionally kept short. The majority for logic is in libraries
 that can be easily tested and imported in Colab.

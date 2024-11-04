@@ -5,28 +5,28 @@ AIGS final project repository
 # How to run
 1. Install python version 3.11.10
 ```bash
-brew install pyenv # macosx
-choco install pyenv # windows powershell
-pyenv install 3.11.10
+# macosx
+brew install pyenv
+
+# windows powershell
+Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1" -OutFile "./install-pyenv-win.ps1"; &"./install-pyenv-win.ps1"
+
+# then
+pyenv install 3.11.10 # or 3.11.9 if .10 is not available
 ```
 
 2. Create and activate virtual environment
 ```bash
 pyenv exec python3 -m venv .venv-aigs
-source .venv/bin/activate # macosx
-.venv/Scripts/activate # windows powershell
+source .venv-aigs/bin/activate # macosx
+.venv-aigs/Scripts/activate # windows powershell
 ```
 
 3. Install dependencies
-- for models
     ```bash
-    pip install -r requirements_models.txt
+    pip install -r requirements.txt
     ```
 
-3. b) for the datasets
-    ```bash
-    pip install -r requirements_nsd.txt
-    ```
 
 4. Run the code
 - for models
