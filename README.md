@@ -27,8 +27,20 @@ source .venv-aigs/bin/activate # macosx
     pip install -r requirements.txt
     ```
 
+4. Download datasets
+- download coco annotations
+```bash
+mkdir annotations && cd annotations
+wget http://images.cocodataset.org/annotations/annotations_trainval2017.zip
+unzip annotations_trainval2017.zip
+```
 
-4. Run the code
+- download algonauts dataset
+```bash
+...
+```
+
+5. Run the code
 - for models
     ```bash
     python3 vae_main.py --config=configs/default.py # for VAE
@@ -38,5 +50,4 @@ source .venv-aigs/bin/activate # macosx
     ```bash
     ...
     ```
-
-there must be a `results` folder inside of the model project folder to save the results, otherwise it won't work.
+    there must be a `results` folder inside of the model project folder to save the results, otherwise it won't work.
