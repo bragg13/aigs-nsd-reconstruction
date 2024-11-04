@@ -16,6 +16,7 @@
 from absl import logging
 from flax import linen as nn
 import input_pipeline
+import nsd_data
 import models
 import utils as vae_utils
 from flax.training import train_state
@@ -25,7 +26,6 @@ import jax.numpy as jnp
 import ml_collections
 import optax
 import tensorflow_datasets as tfds
-
 
 @jax.vmap
 def binary_cross_entropy_with_logits(logits, labels):
@@ -74,6 +74,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
   rng = random.key(0)
   rng, key = random.split(rng)
 
+  # our dataset should be sourced instead of the below
   ds_builder = tfds.builder('binarized_mnist')
   ds_builder.download_and_prepare()
 
@@ -81,7 +82,13 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
   train_ds = input_pipeline.build_train_set(config.batch_size, ds_builder)
   test_ds = input_pipeline.build_test_set(ds_builder)
 
+  # our dataset:
+  idxs = nsd_data.shuffled_idxs()
+  train_stim, test_stim = nsd_data.stim_loader(idxs, config.batch_size)
+  train_fmri, test_fmri = nsd_data.fmri_loader(idxs)
+
   logging.info('Initializing model.')
+  # 784 -> initial input length of fmri
   init_data = jnp.ones((config.batch_size, 784), jnp.float32)
   params = models.model(config.latents).init(key, init_data, rng)['params']
 
@@ -101,6 +108,8 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
   for epoch in range(config.num_epochs):
     for _ in range(steps_per_epoch):
       batch = next(train_ds)
+      # our  data but incomplete, should have both fmri and stimuli
+      # batch = next(iter(train_stim)) 
       rng, key = random.split(rng)
       state = train_step(state, batch, key, config.latents)
 
