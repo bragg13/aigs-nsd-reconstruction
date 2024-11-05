@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 import jax_dataloader as jdl
 import jax.numpy as jnp
+from tqdm.gui import tqdm
 
 # %% class to load and store data
 class argObj:
@@ -50,7 +51,6 @@ def shuffle_idxs():
     print(f'idx of first test image: {idxs_test[0]}')
     return idxs_train, idxs_test
 
-
 # %%
 import jax
 def custom_transforms(image):
@@ -67,26 +67,18 @@ def custom_transforms(image):
 
 class ImageAndFmriDataset(jdl.Dataset):
     """ Dataset class for loading images and fMRI data """
-    def __init__(self, imgs_paths, fmri_paths, idxs):
-        self.imgs_paths = np.array(imgs_paths)[idxs]
+    def __init__(self, imgs, fmri_paths, idxs):
+        self.imgs = imgs[idxs]
         self.lh_fmri = jnp.load(fmri_paths[0])[idxs]
         self.rh_fmri = jnp.load(fmri_paths[1])[idxs]
-        # self.transform = imgs_transform
 
     def __len__(self):
-        return len(self.imgs_paths)
+        return len(self.imgs)
 
     def __getitem__(self, idx):
-        # Load the image
-        img_path = self.imgs_paths[idx]
-        img = Image.open(img_path).convert('RGB')
-
-        # Preprocess the image and send it to the chosen device ('cpu' or 'cuda')
-        img = custom_transforms(img)
-
         # return a tuple containing the image and the fMRI data
-        print(img.dtype)
-        return (img, self.lh_fmri[idx], self.rh_fmri[idx])
+        img = self.imgs[idx]
+        return img, self.lh_fmri[idx], self.rh_fmri[idx]
 
 # %% main
 def create_loaders(all_idxs, batch_size, subject=3):
@@ -99,20 +91,19 @@ def create_loaders(all_idxs, batch_size, subject=3):
     rh_fmri_path = os.path.join(fmri_dir, 'rh_training_fmri.npy')
     fmri_paths = [lh_fmri_path, rh_fmri_path]
 
-    # images - transforms
-    # imgs_transform = transforms.Compose([
-    #     transforms.Resize((224,224)), # resize the images to 224x24 pixels
-    #     transforms.ToTensor(), # convert the images to a PyTorch tensor
-    #     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) # normalize the images color channels
-    # ])
+    imgs = []
+    for i in range(len(imgs_paths)):
+        img = custom_transforms(Image.open(imgs_paths[i]).convert('RGB'))
+        if i % 200 == 0:
+            print(i)
+        imgs.append(img)
+    imgs = jnp.array(imgs)
 
     # indexes - what actually changes
     idxs_train, idxs_test = all_idxs
 
-    train_dataset = ImageAndFmriDataset(imgs_paths, fmri_paths, idxs_train)
-    test_dataset = ImageAndFmriDataset(imgs_paths, fmri_paths, idxs_test)
-
-    print(train_dataset[0][0].shape, train_dataset[0][1].shape, train_dataset[0][2].shape)
+    train_dataset = ImageAndFmriDataset(imgs, fmri_paths, idxs_train)
+    test_dataset = ImageAndFmriDataset(imgs, fmri_paths, idxs_test)
 
     train_loader = jdl.DataLoader(
         dataset=train_dataset,
@@ -136,12 +127,7 @@ def create_loaders(all_idxs, batch_size, subject=3):
 idxs_train, idxs_test = shuffle_idxs()
 train_loader, test_loader = create_loaders((idxs_train, idxs_test), batch_size=30, subject=3)
 
-# %% debug
-# batch = next(iter(train_loader))
-for batch in train_loader:
-    # print(batch)
-    print(batch[0].shape, batch[1].shape)
-    print(batch[0].dtype, batch[1].dtype)
 # %%
-for img in train_loader:
-    print(img.shape)
+# can also use next(iter(train_loader))
+for batch in train_loader:
+    print(batch[0].shape, batch[1].shape, batch[2].shape)
