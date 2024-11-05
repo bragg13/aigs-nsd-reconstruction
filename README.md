@@ -51,3 +51,10 @@ unzip annotations_trainval2017.zip
     ...
     ```
     there must be a `results` folder inside of the model project folder to save the results, otherwise it won't work.
+
+# How to join the coco and algonauts datasets
+
+The file `nsd_coco.csv`, taken directly from the NSD dataset, contains the following columns:
+- `index`: the image id of the coco dataset
+- `cocoId`: the image id of the coco dataset
+- `cocoSplit`: the image file name of the coco dataset

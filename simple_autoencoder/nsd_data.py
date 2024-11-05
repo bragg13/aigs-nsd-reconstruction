@@ -15,9 +15,8 @@ class argObj:
     self.subj = format(subj, '02')
     self.data_dir = os.path.join(data_dir, 'subj'+ self.subj)
 
-def get_dir(folder: str):
+def get_dir(folder: str, subject=3):
     data_dir = '../data'
-    subject = 3
     args = argObj(data_dir, subject)
     return os.path.join(args.data_dir, 'training_split', folder)
 
@@ -25,15 +24,15 @@ def get_dir(folder: str):
 rand_seed = jdl.manual_seed(1234) # from jdl documentation
 
 # %% Create the training, validation and test partitions indices
-def shuffled_idxs():
-
+# THIS SHOULD INSTEAD RETURN THE INDEXES OF SPECIFIC AND SHARED IMAGES IN THE SUBJ FOLDER
+def shuffle_idxs():
     def make_stim_list(stim_dir):
         # Create lists will all training and test image file names, sorted
         stim_list = os.listdir(stim_dir)
         stim_list.sort()
         print('Total stimulus images: ' + str(len(stim_list)))
         return stim_list
-    
+
     stim_list = make_stim_list(get_dir('training_images'))
 
     # Calculate how many stimulus images correspond to 90% of the training data
@@ -45,100 +44,104 @@ def shuffled_idxs():
     # Assign 90% of the shuffled stimulus images to the training partition, and 10% to the test partition
     idxs_train, idxs_test = idxs[:num_train], idxs[num_train:]
 
-    print('Training stimulus images: ' + format(len(idxs_train)))
-    print('Test stimulus images: ' + format(len(idxs_test)))
+    # print('Training stimulus images: ' + format(len(idxs_train)))
+    # print('Test stimulus images: ' + format(len(idxs_test)))
+    print(f'idx of first train image: {idxs_train[0]}')
+    print(f'idx of first test image: {idxs_test[0]}')
     return idxs_train, idxs_test
 
-# %% pytorch dataset builder
 
-class ImageDataset(Dataset):
-    def __init__(self, imgs_paths, idxs, transform):
+# %%
+import jax
+def custom_transforms(image):
+    # Resize to 224x224
+    image = image.resize((224, 224))
+
+    # convert and normalize
+    image_array = jnp.array(image) / 255.0
+    image_array = (image_array - jnp.array([0.485, 0.456, 0.406])) / jnp.array([0.229, 0.224, 0.225])  # Normalize
+
+    # Rearrange dimensions to match JAX's convention (HWC)
+    image_array = jnp.transpose(image_array, (2, 0, 1))  # Change to (C, H, W) if needed for your model
+    return image_array
+
+class ImageAndFmriDataset(jdl.Dataset):
+    """ Dataset class for loading images and fMRI data """
+    def __init__(self, imgs_paths, fmri_paths, idxs):
         self.imgs_paths = np.array(imgs_paths)[idxs]
-        self.transform = transform
+        self.lh_fmri = jnp.load(fmri_paths[0])[idxs]
+        self.rh_fmri = jnp.load(fmri_paths[1])[idxs]
+        # self.transform = imgs_transform
+
     def __len__(self):
         return len(self.imgs_paths)
+
     def __getitem__(self, idx):
         # Load the image
         img_path = self.imgs_paths[idx]
         img = Image.open(img_path).convert('RGB')
+
         # Preprocess the image and send it to the chosen device ('cpu' or 'cuda')
-        if self.transform:
-            img = self.transform(img)#.to(device)
-        return img
+        img = custom_transforms(img)
 
-# %% jax dataloader; returns dataloaders
-# https://pypi.org/project/jax-dataloader/0.0.2/
-def stim_loader(idxs, batch_s):
+        # return a tuple containing the image and the fMRI data
+        print(img.dtype)
+        return (img, self.lh_fmri[idx], self.rh_fmri[idx])
 
-    def data_loader(idxs, batch_size):
-        transform = transforms.Compose([
-            transforms.Resize((224,224)), # resize the images to 224x24 pixels
-            transforms.ToTensor(), # convert the images to a PyTorch tensor
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) # normalize the images color channels
-        ])
-        dataset = ImageDataset(train_imgs_paths, idxs, transform)
-        print(dataset)
-        return jdl.DataLoader(
-            dataset=dataset,
-            backend='pytorch', # Use 'jax' backend for loading data
-            batch_size=batch_size, # Batch size 
-            shuffle=False, # False bec needs to match fmri ? Shuffle the dataloader every iteration or not
-            drop_last=False, # Drop the last batch or not
-        )
+# %% main
+def create_loaders(all_idxs, batch_size, subject=3):
+    # directories - we use shared images for testing, so everything is in the same directory
+    imgs_dir = get_dir('training_images', subject)
+    imgs_paths = sorted(list(Path(imgs_dir).iterdir())) # could pass directly this
 
-    train_imgs_paths = sorted(list(Path(get_dir('training_images')).iterdir()))
-    idxs_train, idxs_test = idxs 
+    fmri_dir = get_dir('training_fmri', subject)
+    lh_fmri_path = os.path.join(fmri_dir, 'lh_training_fmri.npy')
+    rh_fmri_path = os.path.join(fmri_dir, 'rh_training_fmri.npy')
+    fmri_paths = [lh_fmri_path, rh_fmri_path]
 
-    train_stim_loader = data_loader(idxs_train, batch_s)
-    test_stim_loader = data_loader(idxs_test, batch_s)
+    # images - transforms
+    # imgs_transform = transforms.Compose([
+    #     transforms.Resize((224,224)), # resize the images to 224x24 pixels
+    #     transforms.ToTensor(), # convert the images to a PyTorch tensor
+    #     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) # normalize the images color channels
+    # ])
 
-    return train_stim_loader, test_stim_loader
+    # indexes - what actually changes
+    idxs_train, idxs_test = all_idxs
 
-# %% load and split fmri; returns jnp arrays
-def fmri_loader(idxs):
-    # how to initialize this correctly, args?
+    train_dataset = ImageAndFmriDataset(imgs_paths, fmri_paths, idxs_train)
+    test_dataset = ImageAndFmriDataset(imgs_paths, fmri_paths, idxs_test)
 
-    def load(fmri_dir):
-        lh_fmri = jnp.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
-        rh_fmri = jnp.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
+    print(train_dataset[0][0].shape, train_dataset[0][1].shape, train_dataset[0][2].shape)
 
-        print('\nLH fMRI data shape:')
-        print(lh_fmri.shape, ' (Stimulus images × LH vertices)')
-        print('\nRH fMRI data shape:')
-        print(rh_fmri.shape, ' (Stimulus images × RH vertices)')
-        
-        return lh_fmri, rh_fmri
+    train_loader = jdl.DataLoader(
+        dataset=train_dataset,
+        backend='jax',
+        batch_size=batch_size,
+        shuffle=True, # now we can shuffle cause we have tuples
+        drop_last=False,
+    )
+    test_loader = jdl.DataLoader(
+        dataset=test_dataset,
+        backend='jax',
+        batch_size=batch_size,
+        shuffle=True, # now we can shuffle cause we have tuples
+        drop_last=False,
+    )
 
-    def split(fmri_data, idxs):
-        lh_fmri, rh_fmri = fmri_data
-        idxs_train, idxs_test = idxs
+    return train_loader, test_loader
 
-        lh_fmri_train = lh_fmri[idxs_train]
-        lh_fmri_test = lh_fmri[idxs_test]
-        rh_fmri_train = rh_fmri[idxs_train]
-        rh_fmri_test = rh_fmri[idxs_test]
 
-        del lh_fmri, rh_fmri # delete to free up RAM
-
-        return [lh_fmri_train, rh_fmri_train], [lh_fmri_test, rh_fmri_test]
-
-    return split(load(get_dir('training_fmri')), idxs)
+# %% main
+idxs_train, idxs_test = shuffle_idxs()
+train_loader, test_loader = create_loaders((idxs_train, idxs_test), batch_size=30, subject=3)
 
 # %% debug
-idxs = shuffled_idxs()
-# fmri_train, fmri_test = fmri_loader(idxs)
-stim_train, stim_test = stim_loader(idxs, 30)
-
-# this give a TypeError: '_SingleProcessDataLoaderIter' object is not callable
-# batch = next(iter(stim_train))
-
-# %% pythorch dataloaders 
-# # The DataLoaders contain the ImageDataset class
-# train_imgs_dataloader = DataLoader(
-#     ImageDataset(train_imgs_paths, idxs_train, transform),
-#     batch_size=batch_size
-# )
-# test_imgs_dataloader = DataLoader(
-#     ImageDataset(train_imgs_paths, idxs_test, transform),
-#     batch_size=batch_size
-# )
+# batch = next(iter(train_loader))
+for batch in train_loader:
+    # print(batch)
+    print(batch[0].shape, batch[1].shape)
+    print(batch[0].dtype, batch[1].dtype)
+# %%
+for img in train_loader:
+    print(img.shape)

@@ -126,15 +126,3 @@ def visualisation_brain_and_image(img=0, hemisphere='left', roi='V1v'):
 # %% Visualise the brain surface map and the image
 view = visualisation_brain_and_image(img=img, hemisphere='left', roi='V1v')
 view.open_in_browser()
-
-# %% coco load
-from pycocotools.coco import COCO
-import numpy as np
-import skimage.io as io
-import matplotlib.pyplot as plt
-import pylab
-pylab.rcParams['figure.figsize'] = (8.0, 10.0)
-dataDir='.'
-dataType='val2017'
-annFile=f'{data_dir}/annotations/instances_{dataType}.json'
-coco=COCO(annFile)
