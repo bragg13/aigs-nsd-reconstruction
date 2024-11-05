@@ -9,6 +9,7 @@ from torchvision import transforms
 import jax_dataloader as jdl
 import jax.numpy as jnp
 from tqdm.gui import tqdm
+import pandas as pd
 
 # %% class to load and store data
 class argObj:
@@ -25,7 +26,49 @@ def get_dir(folder: str, subject=3):
 rand_seed = jdl.manual_seed(1234) # from jdl documentation
 
 # %% Create the training, validation and test partitions indices
-# THIS SHOULD INSTEAD RETURN THE INDEXES OF SPECIFIC AND SHARED IMAGES IN THE SUBJ FOLDER
+# This is wip; atm it has a dictionary mapping the images nsd ids to its list indices
+# and a filtered table with the shared1000 clumns for all images of subj 3
+def split_idxs():
+    def make_stim_list(stim_dir):
+        # Create lists will all training and test image file names, sorted
+        stim_list = os.listdir(stim_dir)
+        stim_list.sort()
+        return stim_list
+    stim_list = make_stim_list(get_dir('training_images'))
+
+    # make dictionary where the nsd index is mapped to the image list index
+    stim_nsd_idxs = {}
+    for i, filename in enumerate(stim_list):
+        start_i = filename.find('nsd-') + len('nds-')
+        nsd_index = int(filename[start_i:start_i + 5])
+        stim_nsd_idxs[nsd_index] = i
+    
+    print('all algonauts images for subj: ' + str(len(stim_list)))
+
+    # this is taken from coco_load.py but i dont know how to import it
+    # clean up table and filter for only subj 3 and shared1000 
+    def preprocess(dataDir='..'):
+        useless_cols = ['Unnamed: 0', 'loss', 'flagged','BOLD5000',
+            'subject1_rep0','subject1_rep1','subject1_rep2','subject2_rep0','subject2_rep1','subject2_rep2','subject3_rep0','subject3_rep1','subject3_rep2','subject4_rep0','subject4_rep1','subject4_rep2','subject5_rep0','subject5_rep1','subject5_rep2','subject6_rep0','subject6_rep1','subject6_rep2','subject7_rep0','subject7_rep1','subject7_rep2','subject8_rep0','subject8_rep1','subject8_rep2'
+        ]
+        nsd_coco = pd.read_csv(f'{dataDir}/nsd_coco.csv')
+        nsd_coco.drop(columns=useless_cols, inplace=True)
+        return nsd_coco
+    
+    def filter_subj(subject):
+        nsd_coco = preprocess()
+        nsd_coco = nsd_coco[nsd_coco[f'subject{subject}'] == True]
+        return nsd_coco[['nsdId','shared1000']]
+    
+    filtered = filter_subj(3)
+
+    print(f'all nsd images for subj: {len(filtered)}')
+    print('\nnsd id -> list index: ', stim_nsd_idxs)
+    print(filtered)
+    
+split_idxs()
+
+# %% old
 def shuffle_idxs():
     def make_stim_list(stim_dir):
         # Create lists will all training and test image file names, sorted
@@ -131,3 +174,4 @@ train_loader, test_loader = create_loaders((idxs_train, idxs_test), batch_size=3
 # can also use next(iter(train_loader))
 for batch in train_loader:
     print(batch[0].shape, batch[1].shape, batch[2].shape)
+

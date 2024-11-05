@@ -83,9 +83,8 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
   test_ds = input_pipeline.build_test_set(ds_builder)
 
   # our dataset:
-  idxs = nsd_data.shuffled_idxs()
-  train_stim, test_stim = nsd_data.stim_loader(idxs, config.batch_size)
-  train_fmri, test_fmri = nsd_data.fmri_loader(idxs)
+  idxs = nsd_data.shuffle_idxs()
+  train_loader, test_loader = nsd_data.create_loaders(idxs, config.batch_size)
 
   logging.info('Initializing model.')
   # 784 -> initial input length of fmri
@@ -108,8 +107,8 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
   for epoch in range(config.num_epochs):
     for _ in range(steps_per_epoch):
       batch = next(train_ds)
-      # our  data but incomplete, should have both fmri and stimuli
-      # batch = next(iter(train_stim)) 
+      # our data
+      # batch = next(iter(train_loader)) 
       rng, key = random.split(rng)
       state = train_step(state, batch, key, config.latents)
 

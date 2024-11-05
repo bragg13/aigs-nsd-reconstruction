@@ -1,26 +1,38 @@
 # %% coco load and imports
 from pycocotools.coco import COCO
-import numpy as np
 import skimage.io as io
+# %%
+import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# loading the annotations for val and train
+# %% loading the annotations for val and train
 dataDir='.'
 annFileVal=f'{dataDir}/annotations/instances_val2017.json'
 annFileTrain=f'{dataDir}/annotations/instances_train2017.json'
+
+# %% 
 coco_val2017=COCO(annFileVal)
 coco_train2017=COCO(annFileTrain)
 
 # %% dropping some columns so it's cleaner
-useless_cols = ['Unnamed: 0', 'loss', 'flagged','BOLD5000',
-    'subject1_rep0','subject1_rep1','subject1_rep2','subject2_rep0','subject2_rep1','subject2_rep2','subject3_rep0','subject3_rep1','subject3_rep2','subject4_rep0','subject4_rep1','subject4_rep2','subject5_rep0','subject5_rep1','subject5_rep2','subject6_rep0','subject6_rep1','subject6_rep2','subject7_rep0','subject7_rep1','subject7_rep2','subject8_rep0','subject8_rep1','subject8_rep2'
-]
-subject_cols = ['subject1', 'subject2', 'subject3', 'subject4', 'subject5', 'subject6', 'subject7', 'subject8']
-nsd_coco = pd.read_csv(f'{dataDir}/nsd_coco.csv')
-nsd_coco.drop(columns=useless_cols, inplace=True)
+def preprocess(dataDir='.'):
+    useless_cols = ['Unnamed: 0', 'loss', 'flagged','BOLD5000',
+        'subject1_rep0','subject1_rep1','subject1_rep2','subject2_rep0','subject2_rep1','subject2_rep2','subject3_rep0','subject3_rep1','subject3_rep2','subject4_rep0','subject4_rep1','subject4_rep2','subject5_rep0','subject5_rep1','subject5_rep2','subject6_rep0','subject6_rep1','subject6_rep2','subject7_rep0','subject7_rep1','subject7_rep2','subject8_rep0','subject8_rep1','subject8_rep2'
+    ]
+    nsd_coco = pd.read_csv(f'{dataDir}/nsd_coco.csv')
+    nsd_coco.drop(columns=useless_cols, inplace=True)
+    return nsd_coco
+
+def filter_subj(subject):
+    nsd_coco = preprocess()
+    nsd_coco = nsd_coco[nsd_coco[f'subject{subject}'] == True]
+    return nsd_coco[['nsdId','shared1000']]
 
 # %% separate shared images from subject images
+subject_cols = ['subject1', 'subject2', 'subject3', 'subject4', 'subject5', 'subject6', 'subject7', 'subject8']
+nsd_coco = preprocess(dataDir)
+
 shared_images = nsd_coco[nsd_coco['shared1000'] == True]
 shared_images = shared_images.drop(columns=['shared1000'])
 images = []
@@ -57,7 +69,7 @@ def get_categories():
             data.append({'cocoId': img_id, 'categories': str(category_names)})
     return pd.DataFrame(data)
 df = get_categories()
-print(f`tot number of images: {len(df)}`)
+print(f'tot number of images: {len(df)}')
 
 # %% add categories to nsd_coco and images
 cat_df = get_categories()
