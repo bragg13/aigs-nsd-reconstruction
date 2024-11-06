@@ -39,7 +39,7 @@ class Decoder(nn.Module):
   def __call__(self, z):
     z = nn.Dense(500, name='fc1')(z)
     z = nn.relu(z)
-    z = nn.Dense(784, name='fc2')(z)
+    z = nn.Dense(224*224*3, name='fc2')(z)
     return z
 
 
@@ -53,6 +53,8 @@ class AE(nn.Module):
     self.decoder = Decoder()
 
   def __call__(self, x, z_rng):
+    # images, lh_fmri, rh_fmri = x
+    # x = jnp.concatenate([images, lh_fmri, rh_fmri], axis=-1)
     latent_vec = self.encoder(x)
     recon_x = self.decoder(latent_vec)
     return recon_x

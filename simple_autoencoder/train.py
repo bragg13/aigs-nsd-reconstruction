@@ -19,13 +19,14 @@ import input_pipeline
 import nsd_data
 import models
 import utils as vae_utils
-from flax.training import train_state
+from flax.training import train_state, checkpoints
 import jax
 from jax import random
 import jax.numpy as jnp
 import ml_collections
 import optax
 import tensorflow_datasets as tfds
+load_from_disk = False
 
 @jax.vmap
 def binary_cross_entropy_with_logits(logits, labels):
@@ -46,6 +47,7 @@ def train_step(state, batch, z_rng, latents):
         {'params': params}, batch, z_rng
     )
 
+    loss = jnp.mean(jnp.square(recon_x - batch))
     loss = binary_cross_entropy_with_logits(recon_x, batch).mean()
     return loss
 
@@ -75,42 +77,60 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
   rng, key = random.split(rng)
 
   # our dataset should be sourced instead of the below
-  ds_builder = tfds.builder('binarized_mnist')
-  ds_builder.download_and_prepare()
+  # ds_builder = tfds.builder('binarized_mnist')
+  # ds_builder.download_and_prepare()
 
-  logging.info('Initializing dataset.')
-  train_ds = input_pipeline.build_train_set(config.batch_size, ds_builder)
-  test_ds = input_pipeline.build_test_set(ds_builder)
+  print('Initializing dataset.')
+  # train_ds = input_pipeline.build_train_set(config.batch_size, ds_builder)
+  # test_ds = input_pipeline.build_test_set(ds_builder)
 
   # our dataset:
   idxs = nsd_data.shuffle_idxs()
   train_loader, test_loader = nsd_data.create_loaders(idxs, config.batch_size)
+  train_ds = iter(train_loader)
+  test_ds = iter(test_loader)
 
-  logging.info('Initializing model.')
-  # 784 -> initial input length of fmri
-  init_data = jnp.ones((config.batch_size, 784), jnp.float32)
-  params = models.model(config.latents).init(key, init_data, rng)['params']
+  CKPT_DIR = '/Users/andrea/Desktop/aigs-nsd-reconstruction/checkpoints/'
+  if not load_from_disk:
+    # 784 -> initial input length of fmri
+    # init_data = jnp.ones((config.batch_size, 784), jnp.float32)
+    print('Initializing model.')
+    init_data = jnp.ones((config.batch_size, 224, 224, 3), jnp.float32)  # Images
+                # jnp.ones((config.batch_size, 19004), jnp.float32),       # fMRI left hemisphere
+                # jnp.ones((config.batch_size, 20544), jnp.float32))       # fMRI right hemisphere
 
-  state = train_state.TrainState.create(
-      apply_fn=models.model(config.latents).apply,
-      params=params,
-      tx=optax.adam(config.learning_rate),
-  )
+    print('initialising params')
+    params = models.model(config.latents).init(key, init_data, rng)['params']
+
+    print('Initializing state')
+    state = train_state.TrainState.create(
+        apply_fn=models.model(config.latents).apply,
+        params=params,
+        tx=optax.adam(config.learning_rate),
+    )
+    checkpoints.save_checkpoint(ckpt_dir=CKPT_DIR, target=state, step=0)
+    print('saved')
+  else :
+    restored_state = checkpoints.restore_checkpoint(ckpt_dir=CKPT_DIR, target=state)
+    state = restored_state
+  print('okqy')
 
   rng, z_key, eval_rng = random.split(rng, 3)
   z = random.normal(z_key, (64, config.latents))
 
-  steps_per_epoch = (
-      ds_builder.info.splits['train'].num_examples // config.batch_size
-  )
+      # ds_builder.info.splits['train'].num_examples
+  steps_per_epoch = (600 // int(config.batch_size)) # n examples)
 
+  print('starting training')
   for epoch in range(config.num_epochs):
-    for _ in range(steps_per_epoch):
-      batch = next(train_ds)
+    print(epoch)
+    for s in range(steps_per_epoch):
+      print(s)
+      images, lh_fmri, rh_fmri = next(train_ds)
       # our data
-      # batch = next(iter(train_loader)) 
+      # batch = next(iter(train_loader))
       rng, key = random.split(rng)
-      state = train_step(state, batch, key, config.latents)
+      state = train_step(state, images, key, config.latents)
 
     metrics, comparison, sample = eval_f(
         state.params, test_ds, z, eval_rng, config.latents
