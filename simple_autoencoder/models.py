@@ -4,7 +4,7 @@
 from flax import linen as nn
 from jax import random
 import jax.numpy as jnp
-fmri_dimension = 224*224*3
+fmri_dimension = 2000
 
 class Encoder(nn.Module):
   """AE Encoder."""

@@ -38,8 +38,8 @@ def train_step(state, batch, z_rng, latents):
         # loss = binary_cross_entropy_with_logits(recon_x, batch).mean()
         return loss
 
-        grads = jax.grad(loss_fn)(state.params)
-        return state.apply_gradients(grads=grads)
+    grads = jax.grad(loss_fn)(state.params)
+    return state.apply_gradients(grads=grads)
 
 
 def eval_f(params, images, z, z_rng, latents):
@@ -65,16 +65,10 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
 
     print('Initializing dataset.')
     idxs = nsd_data.shuffle_idxs()
-    train_loader, test_loader = nsd_data.create_loaders(idxs, config.batch_size)
-    train_ds = iter(train_loader)
-    test_ds = iter(test_loader)
+    train_loader, test_loader = nsd_data.create_loaders(idxs, roi=None, batch_size=config.batch_size)
 
-    # 784 -> initial input length of fmri
-    # init_data = jnp.ones((config.batch_size, 784), jnp.float32)
     print('Initializing model.')
-    init_data = jnp.ones((config.batch_size, 224, 224, 3), jnp.float32)  # Images
-                # jnp.ones((config.batch_size, 19004), jnp.float32),       # fMRI left hemisphere
-                # jnp.ones((config.batch_size, 20544), jnp.float32))       # fMRI right hemisphere
+    init_data = jnp.ones((config.batch_size, 4, 2000), jnp.float32)  # fmri of 4 shown-images, 2000 voxels each
 
     print('initialising params')
     params = models.model(config.latents).init(key, init_data, rng)['params']
@@ -85,32 +79,35 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
         params=params,
         tx=optax.adam(config.learning_rate),
     )
-    print('saved')
 
     rng, z_key, eval_rng = random.split(rng, 3)
     z = random.normal(z_key, (64, config.latents))
 
         # ds_builder.info.splits['train'].num_examples
-    steps_per_epoch = (600 // int(config.batch_size)) # n examples)
+    number_images = 600
+    steps_per_epoch = (number_images // int(config.batch_size)) # n examples)
 
     print('starting training')
     for epoch in range(config.num_epochs):
+        train_ds = iter(train_loader)
+        test_ds = iter(test_loader)
+
         for s in range(steps_per_epoch):
-            # images, lh_fmri, rh_fmri = next(train_ds)
-            images = next(train_ds)
+            print(s)
+            batch = next(train_ds)
             rng, key = random.split(rng)
-            state = train_step(state, images, key, config.latents)
+            state = train_step(state, batch, key, config.latents)
 
-            metrics, comparison, sample = eval_f(
-                state.params, test_ds, z, eval_rng, config.latents
-            )
-            vae_utils.save_image(
-                comparison, f'results/reconstruction_{epoch}.png', nrow=8
-            )
-            vae_utils.save_image(sample, f'results/sample_{epoch}.png', nrow=8)
+            # metrics, comparison, sample = eval_f(
+            #     state.params, test_ds, z, eval_rng, config.latents
+            # )
+            # vae_utils.save_image(
+            #     comparison, f'results/reconstruction_{epoch}.png', nrow=8
+            # )
+            # vae_utils.save_image(sample, f'results/sample_{epoch}.png', nrow=8)
 
-            print(
-                'eval epoch: {}, loss: {:.4f}'.format(
-                    epoch + 1, metrics['loss']
-                )
-            )
+            # print(
+            #     'eval epoch: {}, loss: {:.4f}'.format(
+            #         epoch + 1, metrics['loss']
+            #     )
+            # )

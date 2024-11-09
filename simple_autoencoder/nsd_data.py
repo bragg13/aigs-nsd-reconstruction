@@ -173,10 +173,11 @@ def create_loaders(all_idxs, batch_size, roi, subject=3):
 
 
 # %% main
-idxs_train, idxs_test = np.array([13, 15, 17, 18]), np.array([3, 5, 7, 8])
-train_loader, test_loader = create_loaders((idxs_train, idxs_test), batch_size=30, roi=None, subject=3)
+# idxs_train, idxs_test = shuffle_idxs()
+# train_loader, test_loader = create_loaders((idxs_train, idxs_test), batch_size=30, roi=None, subject=3)
 
 # %%
-# can also use next(iter(train_loader))
-batch = next(iter(train_loader))
-batch.shape
+# batch = next(iter(train_loader))
+# batch.shape # (4,1000) 4 is the number of fmri pictures (will be 9000) and 2000 is the number of voxels (will depend on the ROI)
+# %%
+# print(len(train_loader))
