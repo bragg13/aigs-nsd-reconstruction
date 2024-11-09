@@ -11,7 +11,7 @@ dataDir='.'
 annFileVal=f'{dataDir}/annotations/instances_val2017.json'
 annFileTrain=f'{dataDir}/annotations/instances_train2017.json'
 
-# %% 
+# %%
 coco_val2017=COCO(annFileVal)
 coco_train2017=COCO(annFileTrain)
 
@@ -35,12 +35,14 @@ nsd_coco = preprocess(dataDir)
 
 shared_images = nsd_coco[nsd_coco['shared1000'] == True]
 shared_images = shared_images.drop(columns=['shared1000'])
-images = []
+subject_dfs = []
 for i in range(1, 9):
     img_df = nsd_coco[(nsd_coco[f'subject{i}'] == True) & (nsd_coco['shared1000'] == False)]
     img_df = img_df.drop(columns=subject_cols)
-    images.append(img_df)
-    print(f'subject{i}: {images[i-1].shape[0]} images')
+    subject_dfs.append(img_df)
+    print(f'subject{i}: {subject_dfs[i-1].shape[0]} images')
+# %%
+subject_dfs[0]
 
 # %% function to get categories for each image
 def get_categories():
@@ -75,9 +77,10 @@ print(f'tot number of images: {len(df)}')
 cat_df = get_categories()
 nsd_coco = pd.merge(nsd_coco, cat_df, left_on='cocoId', right_on='cocoId', how='inner')
 for i in range(1, 9):
-    merged = pd.merge(images[i-1], cat_df, left_on='cocoId', right_on='cocoId', how='inner')
-    print(f"subj{i}: {images[i-1].shape[0]} images, merged: {merged.shape[0]} images")
-    images[i-1] = merged
+    merged = pd.merge(subject_dfs[i-1], cat_df, left_on='cocoId', right_on='cocoId', how='inner')
+    print(f"subj{i}: {subject_dfs[i-1].shape[0]} images, merged: {merged.shape[0]} images")
+    subject_dfs[i-1] = merged
+
 # %% syntactic sugar to retrieve categories from nsdId or cocoId
 def getCategoryFromCocoId(cocoId):
     return nsd_coco[nsd_coco['cocoId'] == cocoId]['categories']

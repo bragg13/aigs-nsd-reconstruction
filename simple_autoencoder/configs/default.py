@@ -23,6 +23,6 @@ def get_config():
 
   config.learning_rate = 0.001
   config.latents = 20
-  config.batch_size = 128
-  config.num_epochs = 30
+  config.batch_size = 32
+  config.num_epochs = 5
   return config
