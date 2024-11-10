@@ -41,7 +41,7 @@ def get_categories():
         data.append({'cocoId': img_id, 'categories': str(category_names)})
 
     df = pd.DataFrame(data)
-    print(f'\ntot number of images: {len(df)}')
+    # print(f'\ntot number of images: {len(df)}')
     return df
 
 # %% function to merge coco categories into a dataframe
@@ -56,6 +56,7 @@ def read_and_preprocess(dataDir='..'):
     nsd_coco = pd.read_csv(f'{dataDir}/nsd_coco.csv')
     nsd_coco.drop(columns=useless_cols, inplace=True)
     nsd_coco = merge_categories(nsd_coco)
+    print(f'nsd-coco loaded: {len(nsd_coco)} images')
     return nsd_coco
 
 # nsd_coco = read_and_preprocess() # for cell based testing
@@ -95,8 +96,9 @@ def filterByCategory(df, category: str, contain = True):
 def splitByCategory(df, category: str):
     df1 = df[df['categories'].apply(lambda x: category in x)]
     df2 = df[df['categories'].apply(lambda x: category not in x)]
-    print(f'\n{category}: {len(df1)} images')
-    print(f'ot {category}: {len(df2)} images')
+    print(f'\ncategory split:')
+    print(f'{category}: {len(df1)} images')
+    print(f'not {category}: {len(df2)} images')
     return df1, df2
 
 # %% syntactic sugar to retrieve categories from nsdId or cocoId
@@ -107,10 +109,13 @@ def getCategoryFromNsdId(nsdId):
     return nsd_coco[nsd_coco['nsdId'] == nsdId]['categories']
 
 def getSharedDf(): 
-    return shared_imgs_df(read_and_preprocess())
+    return shared_imgs_df(nsd_coco)
 
 def getSubjDfs():
-    return subject_dfs(read_and_preprocess())
+    return subject_dfs(nsd_coco)
+
+def getSubjDf(subj_index):
+    return getSubjDfs()[subj_index -1]
 
 # %% test it out
 # nsd_coco contains all the images incl categories
@@ -118,7 +123,7 @@ def getSubjDfs():
 # subj_dfs is an array of dataframes, each containing the images for a subject
 
 nsd_coco = read_and_preprocess()
-shared_df = shared_imgs_df(nsd_coco)
-subj_dfs = subject_dfs(nsd_coco)
+# shared_df = shared_imgs_df(nsd_coco)
+# subj_dfs = subject_dfs(nsd_coco)
 
-print('\ntest: ', getCategoryFromNsdId(72976))
+# print('\ntest: ', getCategoryFromNsdId(72976))

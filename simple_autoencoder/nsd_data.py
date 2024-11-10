@@ -4,12 +4,11 @@ import os
 import numpy as np
 from pathlib import Path
 from PIL import Image
-from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms
 import jax_dataloader as jdl
 import jax.numpy as jnp
 from tqdm.gui import tqdm
 import pandas as pd
+import coco_load as cl
 
 # %% class to load and store data
 class argObj:
@@ -22,13 +21,12 @@ def get_dir(folder: str, subject=3):
     args = argObj(data_dir, subject)
     return os.path.join(args.data_dir, 'training_split', folder)
 
+subject = 3
 rand_seed = jdl.manual_seed(1234) # from jdl documentation
 
 # TODO: finish the idexes splitting (later)
-# %% Create the training, validation and test partitions indices
-# This is wip; atm it has a dictionary mapping the images nsd ids to its list indices
-# and a filtered table with the shared1000 clumns for all images of subj 3
-def split_idxs():
+# %% store img idx and corresponding nsd id in dataframe
+def make_imgs_df():
     def make_stim_list(stim_dir):
         # Create lists will all training and test image file names, sorted
         stim_list = os.listdir(stim_dir)
@@ -36,37 +34,53 @@ def split_idxs():
         return stim_list
     stim_list = make_stim_list(get_dir('training_images'))
 
-    # make dictionary where the nsd index is mapped to the image list index
+    # make dictionary where the images' list index is mapped to the nsd id
     stim_nsd_idxs = {}
     for i, filename in enumerate(stim_list):
         start_i = filename.find('nsd-') + len('nds-')
         nsd_index = int(filename[start_i:start_i + 5])
-        stim_nsd_idxs[nsd_index] = i
+        stim_nsd_idxs[i] = [i, nsd_index]
+    
+    # convert dictionary to dataframe
+    stim_nsd_idxs_df = pd.DataFrame.from_dict(stim_nsd_idxs, orient='index', columns=['listIdx','nsdId'])
+    print(f'total: {len(stim_nsd_idxs_df)}')
+    return stim_nsd_idxs_df
 
-    print('all algonauts images for subj: ' + str(len(stim_list)))
+# %% split indices into training (90% of subject specfic), test (10% of subject specific), person ()
+def split_idxs(category='person'):
+    indices = {}
+    img_df = make_imgs_df()
 
-    # this is taken from coco_load.py but i dont know how to import it
-    # clean up table and filter for only subj 3 and shared1000
-    def preprocess(dataDir='..'):
-        useless_cols = ['Unnamed: 0', 'loss', 'flagged','BOLD5000',
-            'subject1_rep0','subject1_rep1','subject1_rep2','subject2_rep0','subject2_rep1','subject2_rep2','subject3_rep0','subject3_rep1','subject3_rep2','subject4_rep0','subject4_rep1','subject4_rep2','subject5_rep0','subject5_rep1','subject5_rep2','subject6_rep0','subject6_rep1','subject6_rep2','subject7_rep0','subject7_rep1','subject7_rep2','subject8_rep0','subject8_rep1','subject8_rep2'
-        ]
-        nsd_coco = pd.read_csv(f'{dataDir}/nsd_coco.csv')
-        nsd_coco.drop(columns=useless_cols, inplace=True)
-        return nsd_coco
+    def merge(df):
+        return pd.merge(df, img_df, left_on='nsdId', right_on='nsdId', how='inner')
+    
+    subj_df = merge(cl.getSubjDf(subject))
+    shared_df = merge(cl.getSharedDf())
+    shared_pers, shared_not_pers = cl.splitByCategory(shared_df, category)
 
-    def filter_subj(subject):
-        nsd_coco = preprocess()
-        nsd_coco = nsd_coco[nsd_coco[f'subject{subject}'] == True]
-        return nsd_coco[['nsdId','shared1000']]
+    # training and test indices (90%/10%) 
+    subj_idxs = subj_df['listIdx'].values
+    num_train = int(np.round(len(subj_idxs) / 100 * 90))
+    # np.random.shuffle(subj_idxs) # not sure if this is necessary
+    indices['train'] = subj_idxs[:num_train]
+    indices['test'] = subj_idxs[num_train:]
 
-    filtered = filter_subj(3)
+    # category and not indices
+    indices[category] = shared_pers['listIdx'].values
+    indices[f'not_{category}'] = shared_not_pers['listIdx'].values
 
-    print(f'all nsd images for subj: {len(filtered)}')
-    # print('\nnsd id -> list index: ', stim_nsd_idxs)
-    # print(filtered)
+    print(f'\nalgonauts:')
+    print(f'columns: {shared_df.columns}')
+    print(f'shared: {len(indices[category])} + {len(indices[f"not_{category}"])} = {len(shared_df)} images')
+    print(f'subj{subject}: {len(indices["train"])} + {len(indices["test"])} = {len(subj_df)} images')
+    print(f'idx of subj{subject} train split: {indices["train"][0:10]} etc')
+    print(f'idx of subj{subject} test split: {indices["test"][0:10]} etc')
+    print(f'idx of shared "{category}": {indices[category][0:10]} etc')
+    print(f'idx of shared not "{category}": {indices[f"not_{category}"][0:10]} etc')
 
-# split_idxs()
+    return indices
+
+indices = split_idxs()
 
 # %% old
 def shuffle_idxs():
