@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # %% loading the annotations for val and train
-dataDir='.'
+dataDir='..'
 annFileVal=f'{dataDir}/annotations/instances_val2017.json'
 annFileTrain=f'{dataDir}/annotations/instances_train2017.json'
 
@@ -16,7 +16,7 @@ coco_val2017=COCO(annFileVal)
 coco_train2017=COCO(annFileTrain)
 
 # %% dropping some columns so it's cleaner
-def preprocess(dataDir='.'):
+def preprocess(dataDir='..'):
     useless_cols = ['Unnamed: 0', 'loss', 'flagged','BOLD5000',
         'subject1_rep0','subject1_rep1','subject1_rep2','subject2_rep0','subject2_rep1','subject2_rep2','subject3_rep0','subject3_rep1','subject3_rep2','subject4_rep0','subject4_rep1','subject4_rep2','subject5_rep0','subject5_rep1','subject5_rep2','subject6_rep0','subject6_rep1','subject6_rep2','subject7_rep0','subject7_rep1','subject7_rep2','subject8_rep0','subject8_rep1','subject8_rep2'
     ]
