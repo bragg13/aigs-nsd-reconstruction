@@ -1,7 +1,3 @@
-# %% imports not in use
-# import skimage.io as io
-# import numpy as np
-# import matplotlib.pyplot as plt
 # %% imports in use
 from pycocotools.coco import COCO
 import pandas as pd
@@ -109,7 +105,7 @@ def getCategoryFromCocoId(nsd_coco, cocoId):
 def getCategoryFromNsdId(nsd_coco, nsdId):
     return nsd_coco[nsd_coco['nsdId'] == nsdId]['categories']
 
-def getSharedDf(nsd_coco): 
+def getSharedDf(nsd_coco):
     return shared_imgs_df(nsd_coco)
 
 def getSubjDfs(nsd_coco):
