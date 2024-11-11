@@ -43,7 +43,7 @@ def make_imgs_df():
     
     # convert dictionary to dataframe
     stim_nsd_idxs_df = pd.DataFrame.from_dict(stim_nsd_idxs, orient='index', columns=['listIdx','nsdId'])
-    print(f'total: {len(stim_nsd_idxs_df)}')
+    print(f'total algonauts for subj{subject}: {len(stim_nsd_idxs_df)}')
     return stim_nsd_idxs_df
 
 # %% split indices into training (90% of subject specfic), test (10% of subject specific), person ()
@@ -54,8 +54,9 @@ def split_idxs(category='person'):
     def merge(df):
         return pd.merge(df, img_df, left_on='nsdId', right_on='nsdId', how='inner')
     
-    subj_df = merge(cl.getSubjDf(subject))
-    shared_df = merge(cl.getSharedDf())
+    nsd_coco = cl.read_and_preprocess()
+    subj_df = merge(cl.getSubjDf(nsd_coco, subject))
+    shared_df = merge(cl.getSharedDf(nsd_coco))
     shared_pers, shared_not_pers = cl.splitByCategory(shared_df, category)
 
     # training and test indices (90%/10%) 

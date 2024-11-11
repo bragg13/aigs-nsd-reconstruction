@@ -77,6 +77,7 @@ def shared_imgs_df(nsd_coco):
 # %% retrieve subject specific images from nsd_coco (incl categories)
 def subject_dfs(nsd_coco):
     subject_dfs = []
+    print(f'\nsubj_dfs:')
     for i in range(1, 9):
         img_df = nsd_coco[(nsd_coco[f'subject{i}'] == True) & (nsd_coco['shared1000'] == False)]
         img_df = img_df.drop(columns=subject_cols)
@@ -102,27 +103,27 @@ def splitByCategory(df, category: str):
     return df1, df2
 
 # %% syntactic sugar to retrieve categories from nsdId or cocoId
-def getCategoryFromCocoId(cocoId):
+def getCategoryFromCocoId(nsd_coco, cocoId):
     return nsd_coco[nsd_coco['cocoId'] == cocoId]['categories']
 
-def getCategoryFromNsdId(nsdId):
+def getCategoryFromNsdId(nsd_coco, nsdId):
     return nsd_coco[nsd_coco['nsdId'] == nsdId]['categories']
 
-def getSharedDf(): 
+def getSharedDf(nsd_coco): 
     return shared_imgs_df(nsd_coco)
 
-def getSubjDfs():
+def getSubjDfs(nsd_coco):
     return subject_dfs(nsd_coco)
 
-def getSubjDf(subj_index):
-    return getSubjDfs()[subj_index -1]
+def getSubjDf(nsd_coco, subj_index):
+    return getSubjDfs(nsd_coco)[subj_index -1]
 
 # %% test it out
 # nsd_coco contains all the images incl categories
 # shared_df contains the images shared by all subjects
 # subj_dfs is an array of dataframes, each containing the images for a subject
 
-nsd_coco = read_and_preprocess()
+# nsd_coco = read_and_preprocess()
 # shared_df = shared_imgs_df(nsd_coco)
 # subj_dfs = subject_dfs(nsd_coco)
 
