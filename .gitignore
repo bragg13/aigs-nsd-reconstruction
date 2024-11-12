@@ -3,3 +3,4 @@ myenv/
 data/
 .DS_Store
 annotations/
+.panoptic_annotations/
