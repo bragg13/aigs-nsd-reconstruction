@@ -3,4 +3,5 @@ myenv/
 data/
 .DS_Store
 annotations/
-.panoptic_annotations/
+panoptic_annotations/
+__pycache__/
