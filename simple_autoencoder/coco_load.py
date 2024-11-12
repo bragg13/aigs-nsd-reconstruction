@@ -55,7 +55,6 @@ def read_and_preprocess(dataDir='..'):
     ]
     nsd_coco = pd.read_csv(f'{dataDir}/nsd_coco.csv')
     nsd_coco.drop(columns=useless_cols, inplace=True)
-    nsd_coco = merge_categories(nsd_coco)
     print(f'nsd-coco loaded: {len(nsd_coco)} images')
     return nsd_coco
 
@@ -110,7 +109,7 @@ def getCategoryFromNsdId(nsd_coco, nsdId):
     return nsd_coco[nsd_coco['nsdId'] == nsdId]['categories']
 
 def getSharedDf(nsd_coco): 
-    return shared_imgs_df(nsd_coco)
+    return merge_categories(shared_imgs_df(nsd_coco))
 
 def getSubjDfs(nsd_coco):
     return subject_dfs(nsd_coco)
@@ -123,7 +122,7 @@ def getSubjDf(nsd_coco, subj_index):
 # shared_df contains the images shared by all subjects
 # subj_dfs is an array of dataframes, each containing the images for a subject
 
-# nsd_coco = read_and_preprocess()
+nsd_coco = read_and_preprocess()
 # shared_df = shared_imgs_df(nsd_coco)
 # subj_dfs = subject_dfs(nsd_coco)
 

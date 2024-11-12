@@ -54,7 +54,7 @@ def split_idxs(category='person'):
     def merge(df):
         return pd.merge(df, img_df, left_on='nsdId', right_on='nsdId', how='inner')
     
-    nsd_coco = cl.read_and_preprocess()
+    nsd_coco = cl.nsd_coco
     subj_df = merge(cl.getSubjDf(nsd_coco, subject))
     shared_df = merge(cl.getSharedDf(nsd_coco))
     shared_pers, shared_not_pers = cl.splitByCategory(shared_df, category)
