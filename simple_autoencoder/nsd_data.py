@@ -158,7 +158,9 @@ def create_loaders(all_idxs, batch_size, roi, subject=3):
     idxs_train, idxs_test = all_idxs
 
     train_dataset = FmriDataset(fmri_paths, idxs_train)
+    print(f"train len: {len(train_dataset)}, fmri shape: {train_dataset.get_fmri_shape()}")
     test_dataset = FmriDataset(fmri_paths,  idxs_test)
+    print(f"test len: {len(test_dataset)}, fmri shape: {test_dataset.get_fmri_shape()}")
 
     train_loader = jdl.DataLoader(
         dataset=train_dataset,

@@ -44,7 +44,7 @@ class AE(nn.Module):
   def __call__(self, x, z_rng):
     latent_vec = self.encoder(x)
     recon_x = self.decoder(latent_vec)
-    return recon_x
+    return recon_x, latent_vec
 
   def generate(self, z):
     return nn.sigmoid(self.decoder(z))
