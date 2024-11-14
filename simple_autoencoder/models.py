@@ -12,9 +12,12 @@ class Encoder(nn.Module):
 
   @nn.compact
   def __call__(self, x):
-    x = nn.Dense(500, name='fc1')(x)
+    x = nn.Dense(2048, name='fc1')(x)
     x = nn.relu(x)
-    x = nn.Dense(self.latents, name='fc2')(x)
+    x = nn.Dense(1024, name='fc2')(x)
+    x = nn.relu(x)
+    x = nn.Dense(self.latents, name='fc3')(x)
+    x = nn.relu(x)
     return x
 
 
@@ -25,17 +28,19 @@ class Decoder(nn.Module):
 
   @nn.compact
   def __call__(self, z):
-    z = nn.Dense(500, name='fc1')(z)
+    z = nn.Dense(1024, name='fc1')(z)
     z = nn.relu(z)
-    z = nn.Dense(self.fmri_dimension, name='fc2')(z)
+    z = nn.Dense(2048, name='fc2')(z)
+    z = nn.relu(z)
+    z = nn.Dense(self.fmri_dimension, name='fc3')(z)
     return z
 
 
 class AE(nn.Module):
   """Full AE model."""
 
-  latents: int = 20
-  fmri_dimension: int = 7266
+  latents: int = 3000
+  fmri_dimension: int = 3633 #7266
 
   def setup(self):
     self.encoder = Encoder(self.latents)

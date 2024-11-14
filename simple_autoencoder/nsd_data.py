@@ -118,6 +118,9 @@ class FmriDataset(jdl.Dataset):
         rh_fmri = jnp.load(fmri_paths[1])[idxs]
         self.lh_fmri = lh_fmri[:, roi_lh]
         self.rh_fmri = rh_fmri[:, roi_rh]
+        print('min max')
+        print(lh_fmri.max())
+        print(lh_fmri.min())
 
     def __len__(self):
         return len(self.idxs)
@@ -126,7 +129,8 @@ class FmriDataset(jdl.Dataset):
         return self.lh_fmri.shape, self.rh_fmri.shape
 
     def __getitem__(self, idx):
-        return np.concatenate([self.lh_fmri[idx], self.lh_fmri[idx]], axis=1)
+        # return np.concatenate([self.lh_fmri[idx], self.lh_fmri[idx]], axis=1)
+        return self.lh_fmri[idx]
 
 # %% load ROI
 def get_roi():

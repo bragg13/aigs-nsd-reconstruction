@@ -13,26 +13,33 @@ import jax.numpy as jnp
 import ml_collections
 import optax
 import tensorflow_datasets as tfds
-FMRI_DIMENSION = 7266
+FMRI_DIMENSION = 3633
 
 
 def compute_metrics(recon_x, x):
-    # loss = binary_cross_entropy_with_logits(recon_x, x).mean()
     loss = jnp.mean(jnp.square(recon_x - x))
-    print(loss)
     return {'loss': loss }
 
 
 def train_step(state, batch, z_rng, latents, l1_coefficient=0.01):
+
     def loss_fn(params):
         recon_x, latent_vec = models.model(latents, FMRI_DIMENSION).apply(
             {'params': params}, batch, z_rng
         )
 
-        # loss is composed of reconstruction and sparsity loss, where the sparsity loss uses a l1 coefficient to punish the latent rep activations or sth like that
-        recon_loss = jnp.mean(jnp.square(recon_x - batch))
+        # loss is composed of reconstruction and sparsity loss,
+        # where the sparsity loss uses a l1 coefficient to punish the latent rep activations or sth like that
+        mse_loss = jnp.mean(jnp.square(recon_x - batch))
         sparsity_loss = l1_coefficient * jnp.sum(latent_vec)
-        return recon_loss + sparsity_loss
+
+        # can also be impemented as KL-divergence
+        # mean_activation = jnp.mean(hidden_activations, axis=0)
+        # kl_divergence = jnp.sum(
+        #        sparsity_level * jnp.log(sparsity_level / (mean_activation + 1e-10)) +
+        #        (1 - sparsity_level) * jnp.log((1 - sparsity_level) / (1 - mean_activation + 1e-10))
+        #    )
+        return mse_loss #+ sparsity_loss
 
     grads = jax.grad(loss_fn)(state.params)
     return state.apply_gradients(grads=grads)
@@ -40,24 +47,19 @@ def train_step(state, batch, z_rng, latents, l1_coefficient=0.01):
 def eval_f(params, batch, z, z_rng, latents):
     def eval_model(ae):
         recon_x, latent_vec = ae(batch, z_rng)
-        print(latent_vec.shape)
-        # vec_as_image = np.hstack([np.zeros(86), latent_vec[0], np.zeros(67)])
 
-        recon_as_image = np.reshape(recon_x[0], (173, 42))
-        original_as_image = np.reshape(batch[0], (173, 42))
+        recon_as_image = np.reshape(recon_x[0], (173, 21))
+        original_as_image = np.reshape(batch[0], (173, 21))
 
         comparison = np.concatenate([
             original_as_image,
-            np.ones((173, 42)),
-            # vec_as_image,
-            # np.ones((173, 42)),
+            # np.zeros((173, 21)),
             recon_as_image,
+            original_as_image-recon_as_image
         ], axis=1)
 
-        # generate_images = ae.generate(z)
-        # generate_images = generate_images.reshape(-1, 28, 28, 1)
         metrics = compute_metrics(recon_x, batch)
-        return metrics, comparison
+        return metrics, comparison, latent_vec[0]
 
     return nn.apply(eval_model, models.model(latents, FMRI_DIMENSION))({'params': params})
 
@@ -87,11 +89,16 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
     rng, z_key, eval_rng = random.split(rng, 3)
     z = random.normal(z_key, (64, config.latents))
 
-    train_size = 600
+    train_size = 7369
     steps_per_epoch = train_size // int(config.batch_size)
     if train_size % int(config.batch_size) != 0:
         steps_per_epoch += 1
     test_ds = iter(test_loader)
+
+    test_batches = []
+    for step, batch in enumerate(test_loader):
+        test_batches.append(batch)
+    print(len(test_batches))
 
     print('starting training')
     for epoch in range(config.num_epochs):
@@ -101,17 +108,14 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
         epoch_loss = 0.0
         for step, batch in enumerate(train_loader):
             if step >= steps_per_epoch:
-                # reset test ds iterator
-                test_ds = iter(test_loader)
                 break
 
             rng, key = random.split(rng)
             state = train_step(state, batch, key, config.latents)
 
         # eval
-        test_batch = next(test_ds)
-        metrics, comparison = eval_f(
-            state.params, test_batch, z, eval_rng, config.latents
+        metrics, comparison, latent_vec = eval_f(
+            state.params, test_batches[epoch], z, eval_rng, config.latents
         )
 
         # TODO: maybe visualise the weights
@@ -120,10 +124,17 @@ def train_and_evaluate(config: ml_collections.ConfigDict):
         #     print(k)
         #     print(v.shape)
 
-        plt.figure(figsize=(4, 8))
-        plt.imshow(comparison, cmap='gray')
-        plt.title('Original fMRI + reconstruction')
-        plt.savefig(f'results/fmri_visualization_{epoch}.png')
+        fig1, axs1 = plt.subplots(figsize=(4, 8))
+        axs1.imshow(comparison, cmap='gray')
+        axs1.set_title('Original fMRI + reconstruction')
+        fig1.savefig(f'results/fmri_visualization_{epoch}.png')
+        plt.close()
+
+        fig2, axs2 = plt.subplots(figsize=(4, 8))
+        axs2.plot(latent_vec)
+        print(latent_vec)
+        axs2.set_title('latent vector View')
+        fig2.savefig(f'results/latent_vec_{epoch}.png')
         plt.close()
 
         print(
