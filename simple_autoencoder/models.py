@@ -8,7 +8,7 @@ import jax.numpy as jnp
 class Encoder(nn.Module):
   """AE Encoder."""
 
-  latents: int
+  latent_dim: int
 
   @nn.compact
   def __call__(self, x):
@@ -16,15 +16,14 @@ class Encoder(nn.Module):
     x = nn.relu(x)
     x = nn.Dense(1024, name='fc2')(x)
     x = nn.relu(x)
-    x = nn.Dense(self.latents, name='fc3')(x)
+    x = nn.Dense(self.latent_dim, name='fc3')(x)
     x = nn.relu(x)
     return x
-
 
 class Decoder(nn.Module):
   """AE Decoder."""
 
-  fmri_dimension: int
+  fmri_dim: int
 
   @nn.compact
   def __call__(self, z):
@@ -32,27 +31,28 @@ class Decoder(nn.Module):
     z = nn.relu(z)
     z = nn.Dense(2048, name='fc2')(z)
     z = nn.relu(z)
-    z = nn.Dense(self.fmri_dimension, name='fc3')(z)
+    z = nn.Dense(self.fmri_dim, name='fc3')(z)
+    # we dont need sigmoid
     return z
 
 
 class AE(nn.Module):
   """Full AE model."""
 
-  latents: int = 3000
-  fmri_dimension: int = 3633 #7266
+  latent_dim: int #= 3000
+  fmri_dim: int # = 3633 #7266
 
   def setup(self):
     self.encoder = Encoder(self.latents)
-    self.decoder = Decoder(self.fmri_dimension)
+    self.decoder = Decoder(self.fmri_dim)
 
   def __call__(self, x, z_rng):
     latent_vec = self.encoder(x)
     recon_x = self.decoder(latent_vec)
     return recon_x, latent_vec
 
-  def generate(self, z):
-    return nn.sigmoid(self.decoder(z))
+  def generate_fmri_from_latent_vec(self, z):
+    return self.decoder(z)
 
-def model(latents, fmri_dimension):
-  return AE(latents=latents, fmri_dimension=fmri_dimension)
+def model(latent_dim, fmri_dim):
+  return AE(latent_dim=latent_dim, fmri_dim=fmri_dim)

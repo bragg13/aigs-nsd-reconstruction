@@ -110,45 +110,65 @@ def split_idxs(category="person") -> dict[str, list[int]]:
 class FmriDataset(jdl.Dataset):
     """Dataset class for loading images and fMRI data"""
 
-    def __init__(self, fmri_paths, idxs):
+    def __init__(self, fmri_paths, idxs, roi, hem):
         # use
         self.idxs = idxs
-        roi_lh, roi_rh = get_roi()
-        lh_fmri = jnp.load(fmri_paths[0])[idxs]
-        rh_fmri = jnp.load(fmri_paths[1])[idxs]
-        self.lh_fmri = lh_fmri[:, roi_lh]
-        self.rh_fmri = rh_fmri[:, roi_rh]
-        print('min max')
-        print(lh_fmri.max())
-        print(lh_fmri.min())
+        self.hem = hem
+        self.rh_fmri = None
+        self.lh_fmri = None
+        roi_lh, roi_rh = get_roi(roi)
+
+        if self.hem == 'all 'or self.hem == 'rh':
+            rh_fmri = jnp.load(fmri_paths[1])[idxs]
+            self.rh_fmri = rh_fmri[:, roi_rh]
+            print(f"min rh fmri value: {rh_fmri.max()}")
+            print(f"max rh fmri value: {rh_fmri.min()}")
+
+        if self.hem == 'all 'or self.hem == 'lh':
+            lh_fmri = jnp.load(fmri_paths[0])[idxs]
+            self.lh_fmri = lh_fmri[:, roi_lh]
+            print(f"min lh fmri value: {lh_fmri.max()}")
+            print(f"max lh fmri value: {lh_fmri.min()}")
+
 
     def __len__(self):
         return len(self.idxs)
 
     def get_fmri_shape(self):
-        return self.lh_fmri.shape, self.rh_fmri.shape
+        if self.hem == 'all':
+            return self.lh_fmri.shape, self.rh_fmri.shape
+        if self.hem == 'rh':
+            return self.rh_fmri.shape
+        if self.hem == 'lh':
+            return self.lh_fmri.shape
 
     def __getitem__(self, idx):
-        # return np.concatenate([self.lh_fmri[idx], self.lh_fmri[idx]], axis=1)
-        return self.lh_fmri[idx]
+        if self.hem == 'all':
+            return np.concatenate([self.lh_fmri[idx], self.lh_fmri[idx]], axis=1)
+        if self.hem == 'rh':
+            return self.rh_fmri[idx]
+        if self.hem == 'lh':
+            return self.lh_fmri[idx]
 
 # %% load ROI
-def get_roi():
-    roi_class = 'floc-bodies'
-    challenge_roi_class_dir_lh = os.path.join(get_dir_roi(),  'lh.'+roi_class+'_challenge_space.npy')
-    challenge_roi_class_dir_rh = os.path.join(get_dir_roi(),  'rh.'+roi_class+'_challenge_space.npy')
-    challenge_roi_class_lh = np.load(challenge_roi_class_dir_lh)
-    challenge_roi_class_rh = np.load(challenge_roi_class_dir_rh)
+def get_roi(roi_class='floc-bodies'):
+    # roi_class = 'floc-bodies'
+    try:
+        challenge_roi_class_dir_lh = os.path.join(get_dir_roi(),  'lh.'+roi_class+'_challenge_space.npy')
+        challenge_roi_class_dir_rh = os.path.join(get_dir_roi(),  'rh.'+roi_class+'_challenge_space.npy')
+        challenge_roi_class_lh = np.load(challenge_roi_class_dir_lh)
+        challenge_roi_class_rh = np.load(challenge_roi_class_dir_rh)
 
-    # Create a boolean mask for the floc-bodies ROI
-    floc_bodies_mask_lh = challenge_roi_class_lh > 0
-    floc_bodies_mask_rh = challenge_roi_class_rh > 0
+        # Create a boolean mask for the floc-bodies ROI
+        floc_bodies_mask_lh = challenge_roi_class_lh > 0
+        floc_bodies_mask_rh = challenge_roi_class_rh > 0
 
-    return floc_bodies_mask_lh, floc_bodies_mask_rh
+        return floc_bodies_mask_lh, floc_bodies_mask_rh
+    except:
+        raise Exception('Not a valid ROI class')
 
 # %% main
-# TODO: implement ROI masking - remove images
-def create_loaders(all_idxs, batch_size, roi, subject=3):
+def create_loaders(all_idxs, batch_size, roi, hem, subject=3):
     # directories - we use shared images for testing, so everything is in the same directory
     imgs_dir = get_dir_training("training_images", subject)
     imgs_paths = sorted(list(Path(imgs_dir).iterdir()))  # could pass directly this
@@ -165,6 +185,8 @@ def create_loaders(all_idxs, batch_size, roi, subject=3):
     print(f"train len: {len(train_dataset)}, fmri shape: {train_dataset.get_fmri_shape()}")
     test_dataset = FmriDataset(fmri_paths,  idxs_test)
     print(f"test len: {len(test_dataset)}, fmri shape: {test_dataset.get_fmri_shape()}")
+    train_size = len(train_dataset)
+    test_size = len(test_dataset)
 
     train_loader = jdl.DataLoader(
         dataset=train_dataset,
@@ -180,8 +202,7 @@ def create_loaders(all_idxs, batch_size, roi, subject=3):
         shuffle=True,  # now we can shuffle cause we have tuples
         drop_last=False,
     )
-
-    return train_loader, test_loader
+    return train_loader, test_loader, train_size, test_size, test_dataset.get_fmri_shape()
 
 
 # %% main

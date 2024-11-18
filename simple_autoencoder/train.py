@@ -1,10 +1,10 @@
 """Training and evaluation logic."""
 import matplotlib.pyplot as plt
 import numpy as np
-from absl import logging
 from flax import linen as nn
 import nsd_data
 import models
+from logger import log
 import utils as vae_utils
 from flax.training import train_state, checkpoints
 import jax
@@ -13,7 +13,7 @@ import jax.numpy as jnp
 import ml_collections
 import optax
 import tensorflow_datasets as tfds
-FMRI_DIMENSION = 3633
+# FMRI_DIMENSION = 3633
 
 
 def compute_metrics(recon_x, x):
@@ -44,7 +44,7 @@ def train_step(state, batch, z_rng, latents, l1_coefficient=0.01):
     grads = jax.grad(loss_fn)(state.params)
     return state.apply_gradients(grads=grads)
 
-def eval_f(params, batch, z, z_rng, latents):
+def eval_f(params, batch, z_rng, latents):
     def eval_model(ae):
         recon_x, latent_vec = ae(batch, z_rng)
 
@@ -53,7 +53,6 @@ def eval_f(params, batch, z, z_rng, latents):
 
         comparison = np.concatenate([
             original_as_image,
-            # np.zeros((173, 21)),
             recon_as_image,
             original_as_image-recon_as_image
         ], axis=1)
@@ -61,48 +60,46 @@ def eval_f(params, batch, z, z_rng, latents):
         metrics = compute_metrics(recon_x, batch)
         return metrics, comparison, latent_vec[0]
 
+    FMRI_DIMENSION = 100
+    print(batch.size)
     return nn.apply(eval_model, models.model(latents, FMRI_DIMENSION))({'params': params})
 
-def train_and_evaluate(config: ml_collections.ConfigDict):
+def train_and_evaluate(config):
     """Train and evaulate pipeline."""
     rng = random.key(0)
     rng, key = random.split(rng)
 
-    print('Initializing dataset.')
+    log('Initializing dataset...', 'TRAIN')
     idxs = nsd_data.split_idxs()
-    subject_idxs = (idxs['subject_train'], idxs['subject_train'])
-    train_loader, test_loader = nsd_data.create_loaders(subject_idxs, roi=None, batch_size=config.batch_size)
+    subject_idxs = (idxs['subject_train'], idxs['subject_test'])
+    train_loader, test_loader, train_size, test_size, x_dim = nsd_data.create_loaders(subject_idxs, roi=config.roi, hem=config.hem, batch_size=config.batch_size)
 
-    print('Initializing model.')
-    init_data = jnp.ones((config.batch_size, 4, FMRI_DIMENSION), jnp.float32)  # fmri of 4 shown-images, 2000 voxels each
+    log('Initializing model...', 'TRAIN')
+    init_data = jnp.ones((config.batch_size, x_dim), jnp.float32)
 
-    print('initialising params')
-    params = models.model(config.latents, FMRI_DIMENSION).init(key, init_data, rng)['params']
+    log('Initializing params...', 'TRAIN')
+    params = models.model(config.latent_dim, x_dim).init(key, init_data, rng)['params']
 
-    print('Initializing state')
+    log('Initializing state...', 'TRAIN')
     state = train_state.TrainState.create(
-        apply_fn=models.model(config.latents, FMRI_DIMENSION).apply,
+        apply_fn=models.model(config.latent_dim, x_dim).apply, # calls the fun __call__ in model
         params=params,
         tx=optax.adam(config.learning_rate),
     )
 
     rng, z_key, eval_rng = random.split(rng, 3)
-    z = random.normal(z_key, (64, config.latents))
+    z = random.normal(z_key, (64, config.latent_dim)) # test size?
 
-    train_size = 7369
     steps_per_epoch = train_size // int(config.batch_size)
     if train_size % int(config.batch_size) != 0:
         steps_per_epoch += 1
     test_ds = iter(test_loader)
 
     test_batches = []
-    for step, batch in enumerate(test_loader):
-        test_batches.append(batch)
-    print(len(test_batches))
 
-    print('starting training')
+    log('starting training', 'TRAIN')
     for epoch in range(config.num_epochs):
-        print(f'Epoch {epoch + 1}/{config.num_epochs}')
+        log(f'Epoch {epoch + 1}/{config.num_epochs}', 'TRAIN-LOOP')
 
         # Training loop
         epoch_loss = 0.0
