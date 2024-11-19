@@ -1,5 +1,6 @@
 # %%
 # import libraries
+from logger import log
 import os
 import numpy as np
 from pathlib import Path
@@ -10,6 +11,8 @@ from tqdm.gui import tqdm
 import pandas as pd
 import coco_load as cl
 import nsd_data
+import matplotlib.pyplot as plt
+import seaborn as sns
 debug = False
 
 
@@ -112,24 +115,62 @@ class FmriDataset(jdl.Dataset):
 
     def __init__(self, fmri_paths, idxs, roi, hem):
         # use
-        self.idxs = idxs
+        self.idxs = idxs # how am i pssing hte idxs?
         self.hem = hem
         self.rh_fmri = None
         self.lh_fmri = None
         roi_lh, roi_rh = get_roi(roi)
 
-        if self.hem == 'all 'or self.hem == 'rh':
+        if self.hem == 'all' or self.hem == 'rh':
             rh_fmri = jnp.load(fmri_paths[1])[idxs]
+            rh_max = rh_fmri.max()
+            rh_min = rh_fmri.min()
+            print(f"max rh fmri value: {rh_max}")
+            print(f"min rh fmri value: {rh_min}")
+            # rh_fmri += np.abs(rh_min)
+            # new_max = rh_fmri.max()
+            # print(f"new max rh fmri value: {new_max}")
+            # rh_fmri /= new_max
+
+            # rh_max = rh_fmri.max()
+            # rh_min = rh_fmri.min()
+            # print(f"(after noramlisation) max rh fmri value: {rh_max}")
+            # print(f"(after noramlisation) min rh fmri value: {rh_min}")
             self.rh_fmri = rh_fmri[:, roi_rh]
-            print(f"min rh fmri value: {rh_fmri.max()}")
-            print(f"max rh fmri value: {rh_fmri.min()}")
 
-        if self.hem == 'all 'or self.hem == 'lh':
+        if self.hem == 'all' or self.hem == 'lh':
             lh_fmri = jnp.load(fmri_paths[0])[idxs]
-            self.lh_fmri = lh_fmri[:, roi_lh]
-            print(f"min lh fmri value: {lh_fmri.max()}")
-            print(f"max lh fmri value: {lh_fmri.min()}")
+            lh_max = lh_fmri.max()
+            lh_min = lh_fmri.min()
+            print(f"max lh fmri value: {lh_max}")
+            print(f"min lh fmri value: {lh_min}")
+            # lh_fmri += np.abs(lh_min)
+            # new_max = lh_fmri.max()
+            # print(f"new max lh fmri value: {new_max}")
+            # lh_fmri /= new_max
 
+            # lh_max = lh_fmri.max()
+            # lh_min = lh_fmri.min()
+            # print(f"(after noramlisation) max lh fmri value: {lh_max}")
+            # print(f"(after noramlisation) min lh fmri value: {lh_min}")
+            self.lh_fmri = lh_fmri[:, roi_lh]
+
+        if debug and self.hem == 'all':
+            fig, axs = plt.subplots(2, figsize=(10,10))
+            sns.histplot(self.lh_fmri.reshape(-1), ax=axs[0], kde=True)
+            sns.histplot(self.rh_fmri.reshape(-1), ax=axs[1], kde=True)
+            axs[0].set_title('Distribution of fMRI Data (lh)')
+            axs[0].set_xlabel('Voxel Values')
+            axs[0].set_ylabel('Frequency')
+            axs[1].set_title('Distribution of fMRI Data (rh)')
+            axs[1].set_xlabel('Voxel Values')
+            axs[1].set_ylabel('Frequency')
+            plt.show()
+
+            print(f"(lh) Mean: {np.mean(self.lh_fmri)}")
+            print(f"(rh) Mean: {np.mean(self.rh_fmri)}")
+            print(f"(lh) std: {np.std(self.lh_fmri)}")
+            print(f"(rh) std: {np.std(self.rh_fmri)}")
 
     def __len__(self):
         return len(self.idxs)
@@ -152,7 +193,6 @@ class FmriDataset(jdl.Dataset):
 
 # %% load ROI
 def get_roi(roi_class='floc-bodies'):
-    # roi_class = 'floc-bodies'
     try:
         challenge_roi_class_dir_lh = os.path.join(get_dir_roi(),  'lh.'+roi_class+'_challenge_space.npy')
         challenge_roi_class_dir_rh = os.path.join(get_dir_roi(),  'rh.'+roi_class+'_challenge_space.npy')
@@ -181,10 +221,14 @@ def create_loaders(all_idxs, batch_size, roi, hem, subject=3):
     # indexes - what actually changes
     idxs_train, idxs_test = all_idxs
 
-    train_dataset = FmriDataset(fmri_paths, idxs_train)
-    print(f"train len: {len(train_dataset)}, fmri shape: {train_dataset.get_fmri_shape()}")
-    test_dataset = FmriDataset(fmri_paths,  idxs_test)
-    print(f"test len: {len(test_dataset)}, fmri shape: {test_dataset.get_fmri_shape()}")
+    log('Initialising training dataset', 'DATASET')
+    train_dataset = FmriDataset(fmri_paths, idxs_train, roi, hem)
+    print(f"length: {len(train_dataset)}, fmri voxels: {train_dataset.get_fmri_shape()[1]}")
+
+    log('Initialising test dataset', 'DATASET')
+    test_dataset = FmriDataset(fmri_paths,  idxs_test, roi, hem)
+    print(f"length: {len(test_dataset)}, fmri voxels: {test_dataset.get_fmri_shape()[1]}")
+
     train_size = len(train_dataset)
     test_size = len(test_dataset)
 
@@ -202,7 +246,8 @@ def create_loaders(all_idxs, batch_size, roi, hem, subject=3):
         shuffle=True,  # now we can shuffle cause we have tuples
         drop_last=False,
     )
-    return train_loader, test_loader, train_size, test_size, test_dataset.get_fmri_shape()
+    voxels = train_dataset.get_fmri_shape()[1]
+    return train_loader, test_loader, train_size, test_size, voxels
 
 
 # %% main

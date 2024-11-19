@@ -1,6 +1,7 @@
 """Training and evaluation logic."""
 import matplotlib.pyplot as plt
 import numpy as np
+from absl import logging
 from flax import linen as nn
 import nsd_data
 import models
@@ -13,7 +14,6 @@ import jax.numpy as jnp
 import ml_collections
 import optax
 import tensorflow_datasets as tfds
-# FMRI_DIMENSION = 3633
 
 
 def compute_metrics(recon_x, x):
@@ -21,38 +21,31 @@ def compute_metrics(recon_x, x):
     return {'loss': loss }
 
 
-def train_step(state, batch, z_rng, latents, l1_coefficient=0.01):
-
+def train_step(state, batch, z_rng, latent_dim, l1_coefficient=0.01):
     def loss_fn(params):
-        recon_x, latent_vec = models.model(latents, FMRI_DIMENSION).apply(
+        fmri_voxels = batch.shape[1]
+        recon_x, latent_vec = models.model(latent_dim, fmri_voxels).apply(
             {'params': params}, batch, z_rng
         )
-
-        # loss is composed of reconstruction and sparsity loss,
-        # where the sparsity loss uses a l1 coefficient to punish the latent rep activations or sth like that
         mse_loss = jnp.mean(jnp.square(recon_x - batch))
-        sparsity_loss = l1_coefficient * jnp.sum(latent_vec)
+        sparsity_loss = l1_coefficient * jnp.sum(latent_vec) # jnp.sum(jnp.abs(latent_vec))
 
-        # can also be impemented as KL-divergence
-        # mean_activation = jnp.mean(hidden_activations, axis=0)
-        # kl_divergence = jnp.sum(
-        #        sparsity_level * jnp.log(sparsity_level / (mean_activation + 1e-10)) +
-        #        (1 - sparsity_level) * jnp.log((1 - sparsity_level) / (1 - mean_activation + 1e-10))
-        #    )
-        return mse_loss #+ sparsity_loss
+        return mse_loss
 
     grads = jax.grad(loss_fn)(state.params)
     return state.apply_gradients(grads=grads)
 
-def eval_f(params, batch, z_rng, latents):
+def eval_f(params, batch, z, z_rng, latent_dim):
     def eval_model(ae):
         recon_x, latent_vec = ae(batch, z_rng)
 
+        log(f'dim reconx: {recon_x.shape}', 'EVAL_F')
         recon_as_image = np.reshape(recon_x[0], (173, 21))
         original_as_image = np.reshape(batch[0], (173, 21))
 
         comparison = np.concatenate([
             original_as_image,
+            # np.zeros((173, 21)),
             recon_as_image,
             original_as_image-recon_as_image
         ], axis=1)
@@ -60,9 +53,8 @@ def eval_f(params, batch, z_rng, latents):
         metrics = compute_metrics(recon_x, batch)
         return metrics, comparison, latent_vec[0]
 
-    FMRI_DIMENSION = 100
-    print(batch.size)
-    return nn.apply(eval_model, models.model(latents, FMRI_DIMENSION))({'params': params})
+    fmri_voxels = batch.shape[1]
+    return nn.apply(eval_model, models.model(latent_dim, fmri_voxels))({'params': params})
 
 def train_and_evaluate(config):
     """Train and evaulate pipeline."""
@@ -71,35 +63,45 @@ def train_and_evaluate(config):
 
     log('Initializing dataset...', 'TRAIN')
     idxs = nsd_data.split_idxs()
-    subject_idxs = (idxs['subject_train'], idxs['subject_test'])
-    train_loader, test_loader, train_size, test_size, x_dim = nsd_data.create_loaders(subject_idxs, roi=config.roi, hem=config.hem, batch_size=config.batch_size)
+    subject_idxs = (idxs['subject_train'], idxs['subject_train'])
+    train_loader, test_loader, train_size, test_size, fmri_voxels = nsd_data.create_loaders(subject_idxs, roi=config.roi, hem=config.hem, batch_size=config.batch_size)
+    # train_loader, test_loader = nsd_data.create_loaders(subject_idxs, roi=None, batch_size=config.batch_size)
 
     log('Initializing model...', 'TRAIN')
-    init_data = jnp.ones((config.batch_size, x_dim), jnp.float32)
+    # va bene che siano uni en on random gaussian noise?
+    init_data = jnp.ones((config.batch_size, fmri_voxels), jnp.float32)  # fmri of 4 shown-images, 2000 voxels each
 
     log('Initializing params...', 'TRAIN')
-    params = models.model(config.latent_dim, x_dim).init(key, init_data, rng)['params']
+    params = models.model(config.latent_dim, fmri_voxels).init(key, init_data, rng)['params']
 
     log('Initializing state...', 'TRAIN')
     state = train_state.TrainState.create(
-        apply_fn=models.model(config.latent_dim, x_dim).apply, # calls the fun __call__ in model
+        apply_fn=models.model(config.latent_dim, fmri_voxels).apply,
         params=params,
         tx=optax.adam(config.learning_rate),
     )
 
     rng, z_key, eval_rng = random.split(rng, 3)
-    z = random.normal(z_key, (64, config.latent_dim)) # test size?
+    z = random.normal(z_key, (64, config.latent_dim))
 
+    log('Calculating training steps per epochs...', 'TRAIN')
+    print(f'train size is {train_size}')
+    train_size = 7369
     steps_per_epoch = train_size // int(config.batch_size)
     if train_size % int(config.batch_size) != 0:
         steps_per_epoch += 1
+
+    log('Gathering testing batches...', 'TRAIN')
     test_ds = iter(test_loader)
-
     test_batches = []
+    for step, batch in enumerate(test_loader):
+        test_batches.append(batch)
+    log(f'found: {len(test_batches)}', 'TRAIN')
 
-    log('starting training', 'TRAIN')
+    log('\nstarting training', 'TRAIN')
     for epoch in range(config.num_epochs):
-        log(f'Epoch {epoch + 1}/{config.num_epochs}', 'TRAIN-LOOP')
+        log(f'Epoch {epoch + 1}/{config.num_epochs}', 'TRAIN LOOP')
+        # print(f'Epoch {epoch + 1}/{config.num_epochs}')
 
         # Training loop
         epoch_loss = 0.0
@@ -108,11 +110,11 @@ def train_and_evaluate(config):
                 break
 
             rng, key = random.split(rng)
-            state = train_step(state, batch, key, config.latents)
+            state = train_step(state, batch, key, config.latent_dim)
 
         # eval
         metrics, comparison, latent_vec = eval_f(
-            state.params, test_batches[epoch], z, eval_rng, config.latents
+            state.params, test_batches[epoch], z, eval_rng, config.latent_dim
         )
 
         # TODO: maybe visualise the weights
@@ -129,7 +131,6 @@ def train_and_evaluate(config):
 
         fig2, axs2 = plt.subplots(figsize=(4, 8))
         axs2.plot(latent_vec)
-        print(latent_vec)
         axs2.set_title('latent vector View')
         fig2.savefig(f'results/latent_vec_{epoch}.png')
         plt.close()

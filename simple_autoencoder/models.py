@@ -14,10 +14,11 @@ class Encoder(nn.Module):
   def __call__(self, x):
     x = nn.Dense(2048, name='fc1')(x)
     x = nn.relu(x)
+
     x = nn.Dense(1024, name='fc2')(x)
     x = nn.relu(x)
+
     x = nn.Dense(self.latent_dim, name='fc3')(x)
-    x = nn.relu(x)
     return x
 
 class Decoder(nn.Module):
@@ -29,10 +30,11 @@ class Decoder(nn.Module):
   def __call__(self, z):
     z = nn.Dense(1024, name='fc1')(z)
     z = nn.relu(z)
+
     z = nn.Dense(2048, name='fc2')(z)
     z = nn.relu(z)
+
     z = nn.Dense(self.fmri_dim, name='fc3')(z)
-    # we dont need sigmoid
     return z
 
 
@@ -43,7 +45,7 @@ class AE(nn.Module):
   fmri_dim: int # = 3633 #7266
 
   def setup(self):
-    self.encoder = Encoder(self.latents)
+    self.encoder = Encoder(self.latent_dim)
     self.decoder = Decoder(self.fmri_dim)
 
   def __call__(self, x, z_rng):
