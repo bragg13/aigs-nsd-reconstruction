@@ -16,7 +16,7 @@ from torchvision import transforms
 from sklearn.decomposition import IncrementalPCA
 from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr as corr
-
+debug = False
 # download the dataset
 data_dir = './data'
 subject = 3
@@ -58,17 +58,18 @@ test_img_list = os.listdir(test_img_dir)
 test_img_list.sort()
 
 # show smth
-def visualisation_brain_and_image(img=0, hemisphere='left', roi='V1v'):
+def visualisation_brain_and_image(img=0, hemisphere='left', roi='EBA', cmap='cold_hot'):
     # Load the image
     img_dir = os.path.join(train_img_dir, train_img_list[img])
     train_img = Image.open(img_dir).convert('RGB')
 
-    # Plot the image
-    plt.figure()
-    plt.axis('off')
-    plt.imshow(train_img)
-    plt.title('Training image: ' + str(img+1));
-    plt.show()
+    if not debug: 
+        # Plot the image
+        plt.figure()
+        plt.axis('off')
+        plt.imshow(train_img)
+        plt.title('Training image: ' + str(img+1));
+        plt.show()
 
     # Define the ROI class based on the selected ROI
     roi_class = ''
@@ -86,15 +87,26 @@ def visualisation_brain_and_image(img=0, hemisphere='left', roi='V1v'):
         roi_class = 'streams'
 
     # Load the ROI brain surface maps
-    challenge_roi_class_dir = os.path.join(args.data_dir, 'roi_masks',
-        hemisphere[0]+'h.'+roi_class+'_challenge_space.npy')
-    fsaverage_roi_class_dir = os.path.join(args.data_dir, 'roi_masks',
-        hemisphere[0]+'h.'+roi_class+'_fsaverage_space.npy')
-    roi_map_dir = os.path.join(args.data_dir, 'roi_masks',
-        'mapping_'+roi_class+'.npy')
+    challenge_roi_class_dir = os.path.join(args.data_dir, 'roi_masks', hemisphere[0]+'h.'+roi_class+'_challenge_space.npy')
+    fsaverage_roi_class_dir = os.path.join(args.data_dir, 'roi_masks', hemisphere[0]+'h.'+roi_class+'_fsaverage_space.npy')
+    roi_map_dir = os.path.join(args.data_dir, 'roi_masks', 'mapping_'+roi_class+'.npy')
+    
     challenge_roi_class = np.load(challenge_roi_class_dir)
     fsaverage_roi_class = np.load(fsaverage_roi_class_dir)
     roi_map = np.load(roi_map_dir, allow_pickle=True).item()
+    
+    if debug:
+        start = 250
+        end = 300
+        print(f'\nfloc-bodies: {roi_map}')
+        # print(f'fsaverage space: {len(fsaverage_roi_class)}')
+        # print(f'\nlh.floc-bodies_fsaverage_space[{start}:{end}]')
+        # print(fsaverage_roi_class[start:end])
+        print(f'challenge space: {len(challenge_roi_class)}')
+        print(f'\nlh.floc-bodies_challenge_space[{start}:{end}]')
+        print(challenge_roi_class[start:end])
+        print(f'\nlh_fmri[0][{start}:{end}]')
+        print(f'{lh_fmri[0][start:end]}')
 
     # Select the vertices corresponding to the ROI of interest
     roi_mapping = list(roi_map.keys())[list(roi_map.values()).index(roi)]
@@ -104,25 +116,32 @@ def visualisation_brain_and_image(img=0, hemisphere='left', roi='V1v'):
     # Map the fMRI data onto the brain surface map
     fsaverage_response = np.zeros(len(fsaverage_roi))
     if hemisphere == 'left':
-        fsaverage_response[np.where(fsaverage_roi)[0]] = \
-            lh_fmri[img,np.where(challenge_roi)[0]]
+        fsaverage_response[np.where(fsaverage_roi)[0]] = lh_fmri[img,np.where(challenge_roi)[0]]
     elif hemisphere == 'right':
-        fsaverage_response[np.where(fsaverage_roi)[0]] = \
-            rh_fmri[img,np.where(challenge_roi)[0]]
-
-    # Create the interactive brain surface map
-    fsaverage = datasets.fetch_surf_fsaverage('fsaverage')
-    view = plotting.view_surf(
-        surf_mesh=fsaverage['infl_'+hemisphere],
-        surf_map=fsaverage_response,
-        bg_map=fsaverage['sulc_'+hemisphere],
-        threshold=1e-14,
-        cmap='cold_hot',
-        colorbar=True,
-        title=roi+', '+hemisphere+' hemisphere'
-        )
-    return view
+        fsaverage_response[np.where(fsaverage_roi)[0]] = rh_fmri[img,np.where(challenge_roi)[0]]
+    
+    if not debug:
+        # Create the interactive brain surface map
+        fsaverage = datasets.fetch_surf_fsaverage('fsaverage')
+        view = plotting.view_surf(
+            surf_mesh=fsaverage['infl_'+hemisphere],
+            surf_map=fsaverage_response,
+            bg_map=fsaverage['sulc_'+hemisphere],
+            threshold=1e-14,
+            cmap=cmap,
+            colorbar=True,
+            title=roi+', '+hemisphere+' hemisphere'
+            )
+        return view
 
 # %% Visualise the brain surface map and the image
-view = visualisation_brain_and_image(img=img, hemisphere='left', roi='V1v')
-view.open_in_browser()
+if debug: visualisation_brain_and_image(img=img, hemisphere='left', roi='EBA', cmap='cold_hot')
+else:
+    view = visualisation_brain_and_image(img=img, hemisphere='left', roi='EBA', cmap='red_transparent_full_alpha_range')
+    view.open_in_browser()
+    # view2 = visualisation_brain_and_image(img=img, hemisphere='left', roi='FBA-1', cmap='green_transparent_full_alpha_range')
+    # view2.open_in_browser()
+    # view3 = visualisation_brain_and_image(img=img, hemisphere='left', roi='FBA-2', cmap='blue_transparent_full_alpha_range')
+    # view3.open_in_browser()
+    # view4 = visualisation_brain_and_image(img=img, hemisphere='left', roi='mTL-bodies', cmap='Wistia')
+    # view4.open_in_browser()
