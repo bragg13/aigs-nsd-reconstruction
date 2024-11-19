@@ -30,12 +30,11 @@ def applyCropToImg(img, box):
 # base-256 representation, commonly used for image segmentation tasks
 # The resulting 2D array has a shape of h × w, where each element represents a unique integer ID corresponding to the color at that pixel
 def maskToIndices(img):
-    return img[:,:,0] + (img[:,:,1] * 256) + (img[:,:,2] * (256**2))
+    return img[:,:,0]+img[:,:,1]*256+img[:,:,2]*(256**2)
 
 def maskToUniqueIndices(img):
     imgSegIds = np.unique(maskToIndices(img)) # returns a sorted array of unique segment IDs found in the image
-    if 0 in list(imgSegIds): # 0 is probably black aka no segment/background, therefore has no category
-        imgSegIds.remove(0)
+    imgSegIds = imgSegIds[imgSegIds != 0]
     return np.unique(imgSegIds)
 
 def getCategoryIDs(annotations, imgSegIds): # get imgSegIds with maskToUniqueIndices()
@@ -112,55 +111,30 @@ nsdcrop_arr = [ast.literal_eval(item) for item in nsdcrop_arr] # ast converts st
 minSize = 227 # from og code
 categories = dict()
 
+# for i in range(1,2): 
 for i in range(len(cocoId_arr)): 
     cId = cocoId_arr[i]
     png_name = imgDir + '%012d.png' % cId
 
     crop = nsdcrop_arr[i]
     img = skimage.io.imread(png_name)
+    croppedImg = resize(applyCropToImg(img, crop), (minSize,minSize), order=0)
 
-    croppedImg = applyCropToImg(img, crop)
-    # debugging missing from here
-    croppedImg = (resize(croppedImg, (minSize,minSize), order=0) * 256.).astype('uint8') # uint8 causes an error
+    # croppedImg = (croppedImg * 256.).astype('uint8') # this we dont need because croppedImg is in the range 0-255
 
-    imgSegIds = maskToUniqueIndices(croppedImg)
+    imgSegIds = maskToUniqueIndices(croppedImg.astype('uint32'))
     catIds = getCategoryIDs(imgIdToAnns[cId], imgSegIds)
-    catNames = getCategoryNames(catIdToCat, catIds)
     
+    catNames = getCategoryNames(catIdToCat, catIds)
     categories[cId] = catNames
 
-    print (catIds)
-    print (getCategoryNames(catIdToCat, catIds))
-    print (getSupercategoryNames(catIdToCat, catIds))
+    # print (f'cat ids: {catIds}')
+    # print (f'cat names: {catNames}')
+    # print (getSupercategoryNames(catIdToCat, catIds))
 
 # %% convert category dict to dataframe
-# %% copy from notebook 
-# minSize = 227
-# start_idx = 3
-# n_idx = 1
-# subject = 3
+def getCategoriesForImg(cocoId):
+    print(categories[cocoId])
+    return categories[cocoId]
 
-# # instead of below we can get the coco ids and crops from our dataframe
-# coco_info_set = h5py.File(stim_root + 'nsd_to_coco_indice_map.h5py', 'r')
-# cocoId_arr = np.copy(coco_info_set['cocoId'])
-# nsdcrop_arr = np.copy(coco_info_set['crop'])
-
-# # get the categories
-# for i in range(n_idx): # for each image do this
-
-#     nId = start_idx + i
-#     cId = cocoId_arr[subject-1, nId] # array of cocoIds per subj <- nsd_to_coco_indice_map.h5py
-#     png_name = imgDir + '%012d.png' % cId
-
-#     crop = nsdcrop_arr[subject-1, nId] # array of cropBox per subj <- nsd_to_coco_indice_map.h5py
-#     img = skimage.io.imread(png_name)
-
-#     croppedImg = applyCropToImg(img, crop) # img is a 3d array
-#     croppedImg = (resize(croppedImg, (minSize,minSize), order=0) * 256.).astype('uint8')
-
-#     imgSegIds = maskToUniqueIndices(croppedImg) # unique segment IDs, croppedImg is a 3d array
-#     catIds = getCategoryIDs(imgIdToAnns[cId], imgSegIds)
-
-#     print (catIds)
-#     print (getCategoryNames(catIdToCat, catIds))
-#     print (getSupercategoryNames(catIdToCat, catIds))
+getCategoriesForImg(262239)
