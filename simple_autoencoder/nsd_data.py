@@ -12,7 +12,8 @@ import pandas as pd
 import coco_load as cl
 import nsd_data
 import matplotlib.pyplot as plt
-import seaborn as sns
+
+from visualisations import plot_data_distribution
 debug = False
 
 
@@ -155,22 +156,8 @@ class FmriDataset(jdl.Dataset):
             # print(f"(after noramlisation) min lh fmri value: {lh_min}")
             self.lh_fmri = lh_fmri[:, roi_lh]
 
-        if debug and self.hem == 'all':
-            fig, axs = plt.subplots(2, figsize=(10,10))
-            sns.histplot(self.lh_fmri.reshape(-1), ax=axs[0], kde=True)
-            sns.histplot(self.rh_fmri.reshape(-1), ax=axs[1], kde=True)
-            axs[0].set_title('Distribution of fMRI Data (lh)')
-            axs[0].set_xlabel('Voxel Values')
-            axs[0].set_ylabel('Frequency')
-            axs[1].set_title('Distribution of fMRI Data (rh)')
-            axs[1].set_xlabel('Voxel Values')
-            axs[1].set_ylabel('Frequency')
-            plt.show()
-
-            print(f"(lh) Mean: {np.mean(self.lh_fmri)}")
-            print(f"(rh) Mean: {np.mean(self.rh_fmri)}")
-            print(f"(lh) std: {np.std(self.lh_fmri)}")
-            print(f"(rh) std: {np.std(self.rh_fmri)}")
+        # if debug and self.hem == 'all':
+        plot_data_distribution(self.lh_fmri, self.rh_fmri)
 
     def __len__(self):
         return len(self.idxs)

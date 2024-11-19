@@ -6,6 +6,7 @@ from flax import linen as nn
 import nsd_data
 import models
 from logger import log
+from visualisations import plot_first_100vx_over_epochs, plot_losses, plot_results_before_after_training, plot_results_epoch
 import utils as vae_utils
 from flax.training import train_state, checkpoints
 import jax
@@ -14,6 +15,7 @@ import jax.numpy as jnp
 import ml_collections
 import optax
 import tensorflow_datasets as tfds
+from tqdm import tqdm
 
 
 def compute_metrics(recon_x, x):
@@ -37,21 +39,10 @@ def train_step(state, batch, z_rng, latent_dim, l1_coefficient=0.01):
 
 def eval_f(params, batch, z, z_rng, latent_dim):
     def eval_model(ae):
-        recon_x, latent_vec = ae(batch, z_rng)
-
+        recon_x, latent_vecs = ae(batch, z_rng)
         log(f'dim reconx: {recon_x.shape}', 'EVAL_F')
-        recon_as_image = np.reshape(recon_x[0], (173, 21))
-        original_as_image = np.reshape(batch[0], (173, 21))
-
-        comparison = np.concatenate([
-            original_as_image,
-            # np.zeros((173, 21)),
-            recon_as_image,
-            original_as_image-recon_as_image
-        ], axis=1)
-
         metrics = compute_metrics(recon_x, batch)
-        return metrics, comparison, latent_vec[0]
+        return metrics, (batch, recon_x), latent_vecs
 
     fmri_voxels = batch.shape[1]
     return nn.apply(eval_model, models.model(latent_dim, fmri_voxels))({'params': params})
@@ -84,28 +75,32 @@ def train_and_evaluate(config):
     rng, z_key, eval_rng = random.split(rng, 3)
     z = random.normal(z_key, (64, config.latent_dim))
 
-    log('Calculating training steps per epochs...', 'TRAIN')
-    print(f'train size is {train_size}')
-    train_size = 7369
+    log(f'Calculating training steps per epochs (train_size: {train_size})...', 'TRAIN')
     steps_per_epoch = train_size // int(config.batch_size)
     if train_size % int(config.batch_size) != 0:
         steps_per_epoch += 1
+    log(f"{steps_per_epoch} steps for each ({config.num_epochs}) epoch", 'TRAIN')
 
-    log('Gathering testing batches...', 'TRAIN')
+    log('Collecting test batches...', 'TRAIN')
     test_ds = iter(test_loader)
     test_batches = []
     for step, batch in enumerate(test_loader):
         test_batches.append(batch)
-    log(f'found: {len(test_batches)}', 'TRAIN')
+    log(f'collected {len(test_batches)} test batches', 'TRAIN')
 
     log('\nstarting training', 'TRAIN')
+    losses = []
+
+    data_to_reconstruct = test_batches[0]
+    all_reconstructions = []
+    all_reconstructions.append(data_to_reconstruct)
+
     for epoch in range(config.num_epochs):
         log(f'Epoch {epoch + 1}/{config.num_epochs}', 'TRAIN LOOP')
-        # print(f'Epoch {epoch + 1}/{config.num_epochs}')
 
         # Training loop
         epoch_loss = 0.0
-        for step, batch in enumerate(train_loader):
+        for step, batch in tqdm(enumerate(train_loader), total=steps_per_epoch):
             if step >= steps_per_epoch:
                 break
 
@@ -113,30 +108,25 @@ def train_and_evaluate(config):
             state = train_step(state, batch, key, config.latent_dim)
 
         # eval
-        metrics, comparison, latent_vec = eval_f(
+        metrics, (batch, reconstructions), latent_vecs = eval_f(
             state.params, test_batches[epoch], z, eval_rng, config.latent_dim
         )
-
-        # TODO: maybe visualise the weights
-        # print(state.params)
-        # for k,v in state.params.values():
-        #     print(k)
-        #     print(v.shape)
-
-        fig1, axs1 = plt.subplots(figsize=(4, 8))
-        axs1.imshow(comparison, cmap='gray')
-        axs1.set_title('Original fMRI + reconstruction')
-        fig1.savefig(f'results/fmri_visualization_{epoch}.png')
-        plt.close()
-
-        fig2, axs2 = plt.subplots(figsize=(4, 8))
-        axs2.plot(latent_vec)
-        axs2.set_title('latent vector View')
-        fig2.savefig(f'results/latent_vec_{epoch}.png')
-        plt.close()
-
+        plot_results_epoch(batch, reconstructions, latent_vecs, epoch)
         print(
             'eval epoch: {}, loss: {:.4f}'.format(
                 epoch + 1, metrics['loss']
             )
         )
+        losses.append(epoch_loss)
+
+        # for evolution visualisation
+        print(f"data to rec has shape {data_to_reconstruct.shape} ")
+        metrics, (batch, reconstructions), latent_vecs = eval_f(
+            state.params, data_to_reconstruct, z, eval_rng, config.latent_dim
+        )
+        print(f" rec has shape {reconstructions.shape} ")
+        all_reconstructions.append(reconstructions)
+
+    plot_first_100vx_over_epochs(np.array(all_reconstructions))
+    # plot_results_before_after_training(batch reconstructions, latent_vec)
+    plot_losses(losses)
