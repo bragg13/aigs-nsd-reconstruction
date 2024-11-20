@@ -1,10 +1,7 @@
-# %% imports not in use
-# import skimage.io as io
-# import numpy as np
-# import matplotlib.pyplot as plt
 # %% imports in use
 from pycocotools.coco import COCO
 import pandas as pd
+debug = False
 
 # %% loading the annotations for val and train
 dataDir='..'
@@ -13,40 +10,6 @@ annFileTrain=f'{dataDir}/annotations/instances_train2017.json'
 
 coco_val2017=COCO(annFileVal)
 coco_train2017=COCO(annFileTrain)
-
-# %% function to get categories for each image
-def get_categories():
-    image_ids_val = coco_val2017.getImgIds()
-    image_ids_train = coco_train2017.getImgIds()
-    data = []
-
-    for img_id in image_ids_val:
-        # Get category IDs for the given image
-        ann_ids = coco_val2017.getAnnIds(imgIds=img_id)
-        anns = coco_val2017.loadAnns(ann_ids)
-        category_ids = {ann['category_id'] for ann in anns}
-
-        # Map image ID to category names
-        category_names = [coco_val2017.loadCats(cat_id)[0]['name'] for cat_id in category_ids]
-        data.append({'cocoId': img_id, 'categories': str(category_names)})
-
-    for img_id in image_ids_train:
-        # Get category IDs for the given image
-        ann_ids = coco_train2017.getAnnIds(imgIds=img_id)
-        anns = coco_train2017.loadAnns(ann_ids)
-        category_ids = {ann['category_id'] for ann in anns}
-
-        # Map image ID to category names
-        category_names = [coco_train2017.loadCats(cat_id)[0]['name'] for cat_id in category_ids]
-        data.append({'cocoId': img_id, 'categories': str(category_names)})
-
-    df = pd.DataFrame(data)
-    # print(f'\ntot number of images: {len(df)}')
-    return df
-
-# %% function to merge coco categories into a dataframe
-def merge_categories(df):
-    return pd.merge(df, get_categories(), left_on='cocoId', right_on='cocoId', how='inner')
 
 # %% dropping unnecessary columns, and adding Coco categories to nsd-coco dataframe
 def read_and_preprocess(dataDir='..'):
@@ -67,8 +30,9 @@ def shared_imgs_df(nsd_coco):
     shared = nsd_coco[nsd_coco['shared1000'] == True]
     shared = shared.drop(columns=['shared1000'])
     shared = shared.drop(columns=subject_cols)
-    print(f'\ncolumns: {shared.columns}')
-    print(f'shared: {len(shared)} images')
+    if debug:
+        print(f'\ncolumns: {shared.columns}')
+        print(f'shared: {len(shared)} images')
     return shared
 
 # shared_df = shared_imgs_df() # for cell based testing
@@ -76,12 +40,12 @@ def shared_imgs_df(nsd_coco):
 # %% retrieve subject specific images from nsd_coco (incl categories)
 def subject_dfs(nsd_coco):
     subject_dfs = []
-    print(f'\nsubj_dfs:')
+    if debug: print(f'\nsubj_dfs:')
     for i in range(1, 9):
         img_df = nsd_coco[(nsd_coco[f'subject{i}'] == True) & (nsd_coco['shared1000'] == False)]
         img_df = img_df.drop(columns=subject_cols)
         subject_dfs.append(img_df)
-        print(f'subject{i}: {subject_dfs[i-1].shape[0]} images')
+        if debug: print(f'subject{i}: {subject_dfs[i-1].shape[0]} images')
     return subject_dfs
 
 # subj_dfs = subject_dfs() # for cell based testing
@@ -96,9 +60,10 @@ def filterByCategory(df, category: str, contain = True):
 def splitByCategory(df, category: str):
     df1 = df[df['categories'].apply(lambda x: category in x)]
     df2 = df[df['categories'].apply(lambda x: category not in x)]
-    print(f'\ncategory split:')
-    print(f'{category}: {len(df1)} images')
-    print(f'not {category}: {len(df2)} images')
+    if not debug:
+        print(f'\ncategory split:')
+        print(f'{category}: {len(df1)} images')
+        print(f'not {category}: {len(df2)} images')
     return df1, df2
 
 # %% syntactic sugar to retrieve categories from nsdId or cocoId
@@ -109,13 +74,13 @@ def getCategoryFromNsdId(nsd_coco, nsdId):
     return nsd_coco[nsd_coco['nsdId'] == nsdId]['categories']
 
 def getSharedDf(nsd_coco):
-    return merge_categories(shared_imgs_df(nsd_coco))
-
-def getSubjDfs(nsd_coco):
-    return subject_dfs(nsd_coco)
+    return shared_imgs_df(nsd_coco)
 
 def getSubjDf(nsd_coco, subj_index):
     return getSubjDfs(nsd_coco)[subj_index -1]
+
+def getSubjDfs(nsd_coco):
+    return subject_dfs(nsd_coco)
 
 # %% test it out
 # nsd_coco contains all the images incl categories
@@ -123,7 +88,37 @@ def getSubjDf(nsd_coco, subj_index):
 # subj_dfs is an array of dataframes, each containing the images for a subject
 
 nsd_coco = read_and_preprocess()
-# shared_df = shared_imgs_df(nsd_coco)
-# subj_dfs = subject_dfs(nsd_coco)
 
-# print('\ntest: ', getCategoryFromNsdId(72976))
+# %% old / function to get categories for each image
+# def get_categories():
+#     image_ids_val = coco_val2017.getImgIds()
+#     image_ids_train = coco_train2017.getImgIds()
+#     data = []
+
+#     for img_id in image_ids_val:
+#         # Get category IDs for the given image
+#         ann_ids = coco_val2017.getAnnIds(imgIds=img_id)
+#         anns = coco_val2017.loadAnns(ann_ids)
+#         category_ids = {ann['category_id'] for ann in anns}
+
+#         # Map image ID to category names
+#         category_names = [coco_val2017.loadCats(cat_id)[0]['name'] for cat_id in category_ids]
+#         data.append({'cocoId': img_id, 'categories': str(category_names)})
+
+#     for img_id in image_ids_train:
+#         # Get category IDs for the given image
+#         ann_ids = coco_train2017.getAnnIds(imgIds=img_id)
+#         anns = coco_train2017.loadAnns(ann_ids)
+#         category_ids = {ann['category_id'] for ann in anns}
+
+#         # Map image ID to category names
+#         category_names = [coco_train2017.loadCats(cat_id)[0]['name'] for cat_id in category_ids]
+#         data.append({'cocoId': img_id, 'categories': str(category_names)})
+
+#     df = pd.DataFrame(data)
+#     # print(f'\ntot number of images: {len(df)}')
+#     return df
+
+# %% old / function to merge coco categories into a dataframe
+# def merge_categories(df):
+#     return pd.merge(df, get_categories(), left_on='cocoId', right_on='cocoId', how='inner')

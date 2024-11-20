@@ -3,12 +3,14 @@
 import os
 import numpy as np
 from pathlib import Path
-from PIL import Image
 import jax_dataloader as jdl
 import jax.numpy as jnp
 from tqdm.gui import tqdm
 import pandas as pd
 import coco_load as cl
+import coco_cat as cc
+
+debug = False
 
 # %% class to load and store data
 class argObj:
@@ -25,44 +27,48 @@ subject = 3
 rand_seed = jdl.manual_seed(1234) # from jdl documentation
 
 # TODO: finish the idexes splitting (later)
-# %% store img idx and corresponding nsd id in dataframe
+# %% store img-idx and corresponding nsd-id in dataframe / get categories
 def make_imgs_df():
+    # Create lists will all training and test image file names, sorted
     def make_stim_list(stim_dir):
-        # Create lists will all training and test image file names, sorted
         stim_list = os.listdir(stim_dir)
         stim_list.sort()
         return stim_list
     stim_list = make_stim_list(get_dir('training_images'))
 
-    # make dictionary where the images' list index is mapped to the nsd id
+    # make dictionary where the images' list index is mapped to the nsd-id
     stim_nsd_idxs = {}
     for i, filename in enumerate(stim_list):
         start_i = filename.find('nsd-') + len('nds-')
         nsd_index = int(filename[start_i:start_i + 5])
         stim_nsd_idxs[i] = [i, nsd_index]
     
-    # convert dictionary to dataframe
-    stim_nsd_idxs_df = pd.DataFrame.from_dict(stim_nsd_idxs, orient='index', columns=['listIdx','nsdId'])
-    print(f'total algonauts for subj{subject}: {len(stim_nsd_idxs_df)}')
-    return stim_nsd_idxs_df
+    print(f'total algonauts for subj{subject}: {len(stim_list)}')
+
+    # convert dict to dataframe
+    return pd.DataFrame.from_dict(stim_nsd_idxs, orient='index', columns=['listIdx','nsdId'])
+    
+def get_cat_df(shared_df):
+    return pd.DataFrame.from_dict(cc.extractCategories(shared_df), orient='index', columns=['cocoId','categories'])
 
 # %% split indices into training (90% of subject specfic), test (10% of subject specific), person ()
 def split_idxs(category='person'):
-    indices = {}
     img_df = make_imgs_df()
 
-    def merge(df):
-        return pd.merge(df, img_df, left_on='nsdId', right_on='nsdId', how='inner')
+    subj_df = cl.getSubjDf(cl.nsd_coco, subject)
+    subj_df = subj_df.merge(img_df, on='nsdId')
     
-    nsd_coco = cl.read_and_preprocess()
-    subj_df = merge(cl.getSubjDf(nsd_coco, subject))
-    shared_df = merge(cl.getSharedDf(nsd_coco))
+    shared_df = cl.getSharedDf(cl.nsd_coco)
+    cat_df = get_cat_df(shared_df)
+    shared_df = shared_df.merge(img_df, on='nsdId').merge(cat_df, on='cocoId')
     shared_pers, shared_not_pers = cl.splitByCategory(shared_df, category)
 
+    indices = {}
     # training and test indices (90%/10%) 
     subj_idxs = subj_df['listIdx'].values
     num_train = int(np.round(len(subj_idxs) / 100 * 90))
-    # np.random.shuffle(subj_idxs) # not sure if this is necessary
+
+    np.random.shuffle(subj_idxs)
     indices['train'] = subj_idxs[:num_train]
     indices['test'] = subj_idxs[num_train:]
 
@@ -70,44 +76,18 @@ def split_idxs(category='person'):
     indices[category] = shared_pers['listIdx'].values
     indices[f'not_{category}'] = shared_not_pers['listIdx'].values
 
-    print(f'\nalgonauts:')
-    print(f'columns: {shared_df.columns}')
-    print(f'shared: {len(indices[category])} + {len(indices[f"not_{category}"])} = {len(shared_df)} images')
-    print(f'subj{subject}: {len(indices["train"])} + {len(indices["test"])} = {len(subj_df)} images')
-    print(f'idx of subj{subject} train split: {indices["train"][0:10]} etc')
-    print(f'idx of subj{subject} test split: {indices["test"][0:10]} etc')
-    print(f'idx of shared "{category}": {indices[category][0:10]} etc')
-    print(f'idx of shared not "{category}": {indices[f"not_{category}"][0:10]} etc')
-
+    if debug:
+        print(f'\nalgonauts:')
+        print(f'columns: {shared_df.columns}')
+        print(f'shared: {len(indices[category])} + {len(indices[f"not_{category}"])} = {len(shared_df)} images')
+        print(f'subj{subject}: {len(indices["train"])} + {len(indices["test"])} = {len(subj_df)} images')
+        print(f'idx of subj{subject} train: {indices["train"][0:10]} etc')
+        print(f'idx of subj{subject} test: {indices["test"][0:10]} etc')
+        print(f'idx of shared "{category}": {indices[category][0:10]} etc')
+        print(f'idx of shared not "{category}": {indices[f"not_{category}"][0:10]} etc')
     return indices
 
 indices = split_idxs()
-
-# %% old
-def shuffle_idxs():
-    def make_stim_list(stim_dir):
-        # Create lists will all training and test image file names, sorted
-        stim_list = os.listdir(stim_dir)
-        stim_list.sort()
-        print('Total stimulus images: ' + str(len(stim_list)))
-        return stim_list
-
-    stim_list = make_stim_list(get_dir('training_images'))
-
-    # Calculate how many stimulus images correspond to 90% of the training data
-    num_train = int(np.round(len(stim_list) / 100 * 90))
-    # Shuffle all training stimulus images
-    idxs = np.arange(len(stim_list))
-    np.random.shuffle(idxs)
-
-    # Assign 90% of the shuffled stimulus images to the training partition, and 10% to the test partition
-    idxs_train, idxs_test = idxs[:num_train], idxs[num_train:]
-
-    # print('Training stimulus images: ' + format(len(idxs_train)))
-    # print('Test stimulus images: ' + format(len(idxs_test)))
-    print(f'idx of first train image: {idxs_train[0]}')
-    print(f'idx of first test image: {idxs_test[0]}')
-    return idxs_train, idxs_test
 
 # %%
 # def custom_transforms(image):
@@ -186,13 +166,28 @@ def create_loaders(all_idxs, batch_size, roi, subject=3):
 
     return train_loader, test_loader
 
+# %% old
+# def shuffle_idxs():
+#     def make_stim_list(stim_dir):
+#         # Create lists will all training and test image file names, sorted
+#         stim_list = os.listdir(stim_dir)
+#         stim_list.sort()
+#         print('Total stimulus images: ' + str(len(stim_list)))
+#         return stim_list
 
-# %% main
-# idxs_train, idxs_test = shuffle_idxs()
-# train_loader, test_loader = create_loaders((idxs_train, idxs_test), batch_size=30, roi=None, subject=3)
+#     stim_list = make_stim_list(get_dir('training_images'))
 
-# %%
-# batch = next(iter(train_loader))
-# batch.shape # (4,1000) 4 is the number of fmri pictures (will be 9000) and 2000 is the number of voxels (will depend on the ROI)
-# %%
-# print(len(train_loader))
+#     # Calculate how many stimulus images correspond to 90% of the training data
+#     num_train = int(np.round(len(stim_list) / 100 * 90))
+#     # Shuffle all training stimulus images
+#     idxs = np.arange(len(stim_list))
+#     np.random.shuffle(idxs)
+
+#     # Assign 90% of the shuffled stimulus images to the training partition, and 10% to the test partition
+#     idxs_train, idxs_test = idxs[:num_train], idxs[num_train:]
+
+#     # print('Training stimulus images: ' + format(len(idxs_train)))
+#     # print('Test stimulus images: ' + format(len(idxs_test)))
+#     print(f'idx of first train image: {idxs_train[0]}')
+#     print(f'idx of first test image: {idxs_test[0]}')
+#     return idxs_train, idxs_test

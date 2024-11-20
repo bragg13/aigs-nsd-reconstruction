@@ -5,8 +5,6 @@ import numpy as np
 import json
 from collections import defaultdict
 import ast
-import coco_load as cl
-# import seaborn as sns
 
 # %% og functions taken from notebook
 def applyCropToImg(img, box):
@@ -50,16 +48,6 @@ def getCategoryNames(catIdToCat, catIds):
 def getSupercategoryNames(catIdToCat, catIds):
     return np.unique([catIdToCat[c][0]['supercategory'] for c in catIds])
 
-def supercategoryMap(croppedImg, annotations, embbeding):
-    segmentMap = maskToIndices(croppedImg).flatten()
-    superMap = np.full(fill_value=-1, shape=segmentMap.shape, dtype=np.int)
-    imgSegIds = maskToUniqueIndices(croppedImg)
-    catIds = getCategoryIDs(annotations, imgSegIds)
-    for c,s in zip(catIds, imgSegIds):
-        supercat = getSupercategoryNames(catIdToCat, [c])[0]
-        superMap[segmentMap==s] = embbeding[supercat]            
-    return superMap.reshape(croppedImg.shape[:2])
-
 # %% directories
 # in the panotic annotations download, there are 2 zip files that hold the images, join them into one folder 'panoptic_joint'
 annDir = '../panoptic_annotations/'
@@ -86,7 +74,7 @@ dataset = json.load(open(panop_val_annFile, 'r'))
 if 'annotations' in dataset:
     for ann in dataset['annotations']:
         imgIdToAnns[ann['image_id']].append(ann)
-    # the below was originally not in the code, do we need it??
+    # the below was originally not in the code, do we need it?
     for cat in dataset['categories']:
         catIdToCat[cat['id']].append(cat)
 
@@ -101,40 +89,28 @@ if 'annotations' in dataset:
 # print('\ncategories[0]:')
 # print(f'{dataset["categories"][0]}')
 
-# %% load relevant coco ids and their crop dimensions from our coco_load dataframe
-shared_df = cl.getSharedDf(cl.nsd_coco)
-cocoId_arr = np.copy(shared_df['cocoId'].values)
-nsdcrop_arr = shared_df['cropBox'].values # values are the cropBoxes but as strings
-nsdcrop_arr = [ast.literal_eval(item) for item in nsdcrop_arr] # ast converts strings to tuples of floats
-
 # %% get categories
-minSize = 227 # from og code
-categories = dict()
+def extractCategories(shared_df):
+    minSize = 227 # from og code
+    categories = dict()
 
-# for i in range(1,2): 
-for i in range(len(cocoId_arr)): 
-    cId = cocoId_arr[i]
-    png_name = imgDir + '%012d.png' % cId
+    cocoId_arr = np.copy(shared_df['cocoId'].values)
+    nsdcrop_arr = shared_df['cropBox'].values # values are the cropBoxes but as strings
+    nsdcrop_arr = [ast.literal_eval(item) for item in nsdcrop_arr] # ast converts strings to tuples of floats
 
-    crop = nsdcrop_arr[i]
-    img = skimage.io.imread(png_name)
-    croppedImg = resize(applyCropToImg(img, crop), (minSize,minSize), order=0)
+    for i in range(len(cocoId_arr)): 
+        crop = nsdcrop_arr[i]
+        cocoId = cocoId_arr[i]
+        png_name = imgDir + '%012d.png' % cocoId
 
-    # croppedImg = (croppedImg * 256.).astype('uint8') # this we dont need because croppedImg is in the range 0-255
+        img = skimage.io.imread(png_name)
+        croppedImg = resize(applyCropToImg(img, crop), (minSize,minSize), order=0)
 
-    imgSegIds = maskToUniqueIndices(croppedImg.astype('uint32'))
-    catIds = getCategoryIDs(imgIdToAnns[cId], imgSegIds)
-    
-    catNames = getCategoryNames(catIdToCat, catIds)
-    categories[cId] = catNames
+        imgSegIds = maskToUniqueIndices(croppedImg.astype('uint32'))
+        catIds = getCategoryIDs(imgIdToAnns[cocoId], imgSegIds)
+        catNames = getCategoryNames(catIdToCat, catIds)
+        categories[cocoId] = [cocoId, catNames]
 
-    # print (f'cat ids: {catIds}')
-    # print (f'cat names: {catNames}')
-    # print (getSupercategoryNames(catIdToCat, catIds))
-
-# %% convert category dict to dataframe
-def getCategoriesForImg(cocoId):
-    print(categories[cocoId])
-    return categories[cocoId]
-
-getCategoriesForImg(262239)
+        # print (f'cat ids: {catIds}')
+        # print (f'cat names: {catNames}')
+    return categories
