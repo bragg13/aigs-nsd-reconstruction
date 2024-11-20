@@ -15,7 +15,9 @@ from PIL import Image
 from matplotlib import pyplot as plt
 from nilearn import datasets
 from nilearn import plotting
-debug = False
+from nilearn import image
+import nibabel as nib
+debug = True
 
 # %% download the dataset, this is also in nsd_data
 data_dir = './data'
@@ -80,6 +82,14 @@ def get_roi_class(roi: str):
         roi_class = 'streams'
     return roi_class
 
+# %% convert numpy array to nii image object
+def conv_to_nii(fmri_arr):
+    example_file = os.path.join('data/test/T2_to_MNI.nii.gz')
+    exImg = nib.load(example_file) # shape (120, 120, 84, 188)
+    nii = image.new_img_like(exImg, fmri_arr)
+    print(nii.shape)
+    return nii
+
 # %% show roi on brain surface map
 def visualisation_brain_and_image(img=0, hemisphere='left', roi='EBA', full_class=False, cmap='cold_hot'):
     # if not debug: plotImg(img) # some bug, not super relevant
@@ -93,6 +103,9 @@ def visualisation_brain_and_image(img=0, hemisphere='left', roi='EBA', full_clas
     challenge_roi_class = np.load(challenge_roi_class_dir) # mapped roi indices to brain voxels
     fsaverage_roi_class = np.load(fsaverage_roi_class_dir)
     roi_map = np.load(roi_map_dir, allow_pickle=True).item()
+
+    # try converting np array to nii image for visualisation
+    # niiTest = conv_to_nii(fsaverage_roi_class)
     
     if debug:
         start = 250
@@ -107,14 +120,12 @@ def visualisation_brain_and_image(img=0, hemisphere='left', roi='EBA', full_clas
         print(f'\nlh_fmri[0][{start}:{end}]')
         print(f'{lh_fmri[0][start:end]}')
 
-    # Select the vertices corresponding to the ROI of interest
-
     # map only one roi or the roi class to fsaverage
     def map_fsaverage_resp(hemisphere:str, all_rois=False):
         if all_rois: fsvg_roi, ch_roi = fsaverage_roi_class, challenge_roi_class
         else:
+            # Select the vertices corresponding to the ROI of interest
             roi_mapping = list(roi_map.keys())[list(roi_map.values()).index(roi)] # the id of the roi
-            print('roiindex', roi_mapping)
             challenge_roi = np.asarray(challenge_roi_class == roi_mapping, dtype=int) # set all other roi ids to 0 (False)
             fsaverage_roi = np.asarray(fsaverage_roi_class == roi_mapping, dtype=int)
             fsvg_roi, ch_roi = fsaverage_roi, challenge_roi
@@ -137,7 +148,7 @@ def visualisation_brain_and_image(img=0, hemisphere='left', roi='EBA', full_clas
 
     # Map the fMRI data onto the brain surface map
     fsaverage = datasets.fetch_surf_fsaverage('fsaverage')
-    
+
     if not debug:
         plotting.plot_anat()
         view = plotting.view_surf(
