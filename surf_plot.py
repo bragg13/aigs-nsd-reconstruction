@@ -1,27 +1,27 @@
-# %%
-# import libraries
-import os
-import numpy as np
-from pathlib import Path
-from PIL import Image
-from tqdm import tqdm
-import matplotlib
-from matplotlib import pyplot as plt
-from nilearn import datasets
-from nilearn import plotting
-import torch
-from torch.utils.data import DataLoader, Dataset
-from torchvision.models.feature_extraction import create_feature_extractor, get_graph_node_names
+# %% imports not in use
 from torchvision import transforms
 from sklearn.decomposition import IncrementalPCA
 from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr as corr
+from pathlib import Path
+from tqdm import tqdm
+import matplotlib
+import torch
+from torchvision.models.feature_extraction import create_feature_extractor, get_graph_node_names
+# %% imports in use
+import os
+import numpy as np
+from PIL import Image
+from matplotlib import pyplot as plt
+from nilearn import datasets
+from nilearn import plotting
 debug = False
-# download the dataset
+
+# %% download the dataset, this is also in nsd_data
 data_dir = './data'
 subject = 3
 
-# class to load and store data
+# the class to load and store data
 class argObj:
   def __init__(self, data_dir, subj):
     self.subj = format(subj, '02')
@@ -34,15 +34,10 @@ fmri_dir = os.path.join(args.data_dir, 'training_split', 'training_fmri')
 lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
 rh_fmri = np.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
 
-print('LH training fMRI data shape:')
-print(lh_fmri.shape)
-print('(Training stimulus images × LH vertices)')
+print(f'LH training fMRI data shape:\n{lh_fmri.shape} (Training stimulus images × LH vertices)')
+print(f'\nRH training fMRI data shape:\n{rh_fmri.shape} (Training stimulus images × RH vertices)')
 
-print('\nRH training fMRI data shape:')
-print(rh_fmri.shape)
-print('(Training stimulus images × RH vertices)')
-
-# load images and define some params
+# %% load image lists and define some params
 hemispheres = ['left', 'right']
 roi = ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4", "EBA", "FBA-1", "FBA-2", "mTL-bodies", "OFA", "FFA-1", "FFA-2", "mTL-faces", "aTL-faces", "OPA", "PPA", "RSC", "OWFA", "VWFA-1", "VWFA-2", "mfs-words", "mTL-words", "early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"]
 img = 0
@@ -52,25 +47,23 @@ train_img_dir  = os.path.join(args.data_dir, 'training_split', 'training_images'
 test_img_dir  = os.path.join(args.data_dir, 'test_split', 'test_images')
 
 # train and test i
-train_img_list = os.listdir(train_img_dir)
-train_img_list.sort()
-test_img_list = os.listdir(test_img_dir)
-test_img_list.sort()
+train_img_list = os.listdir(train_img_dir).sort()
+test_img_list = os.listdir(test_img_dir).sort()
 
-# show smth
-def visualisation_brain_and_image(img=0, hemisphere='left', roi='EBA', cmap='cold_hot'):
+# %% img plot and roi class def
+def plotImg(img: int):
     # Load the image
     img_dir = os.path.join(train_img_dir, train_img_list[img])
     train_img = Image.open(img_dir).convert('RGB')
 
-    if not debug: 
-        # Plot the image
-        plt.figure()
-        plt.axis('off')
-        plt.imshow(train_img)
-        plt.title('Training image: ' + str(img+1));
-        plt.show()
+    # Plot the image
+    plt.figure()
+    plt.axis('off')
+    plt.imshow(train_img)
+    plt.title('Training image: ' + str(img+1))
+    plt.show()
 
+def get_roi_class(roi: str):
     # Define the ROI class based on the selected ROI
     roi_class = ''
     if roi in ["V1v", "V1d", "V2v", "V2d", "V3v", "V3d", "hV4"]:
@@ -85,13 +78,19 @@ def visualisation_brain_and_image(img=0, hemisphere='left', roi='EBA', cmap='col
         roi_class = 'floc-words'
     elif roi in ["early", "midventral", "midlateral", "midparietal", "ventral", "lateral", "parietal"]:
         roi_class = 'streams'
+    return roi_class
+
+# %% show roi on brain surface map
+def visualisation_brain_and_image(img=0, hemisphere='left', roi='EBA', full_class=False, cmap='cold_hot'):
+    # if not debug: plotImg(img) # some bug, not super relevant
+    roi_class = get_roi_class(roi)
 
     # Load the ROI brain surface maps
     challenge_roi_class_dir = os.path.join(args.data_dir, 'roi_masks', hemisphere[0]+'h.'+roi_class+'_challenge_space.npy')
     fsaverage_roi_class_dir = os.path.join(args.data_dir, 'roi_masks', hemisphere[0]+'h.'+roi_class+'_fsaverage_space.npy')
     roi_map_dir = os.path.join(args.data_dir, 'roi_masks', 'mapping_'+roi_class+'.npy')
     
-    challenge_roi_class = np.load(challenge_roi_class_dir)
+    challenge_roi_class = np.load(challenge_roi_class_dir) # mapped roi indices to brain voxels
     fsaverage_roi_class = np.load(fsaverage_roi_class_dir)
     roi_map = np.load(roi_map_dir, allow_pickle=True).item()
     
@@ -109,36 +108,58 @@ def visualisation_brain_and_image(img=0, hemisphere='left', roi='EBA', cmap='col
         print(f'{lh_fmri[0][start:end]}')
 
     # Select the vertices corresponding to the ROI of interest
-    roi_mapping = list(roi_map.keys())[list(roi_map.values()).index(roi)]
-    challenge_roi = np.asarray(challenge_roi_class == roi_mapping, dtype=int)
-    fsaverage_roi = np.asarray(fsaverage_roi_class == roi_mapping, dtype=int)
+
+    # map only one roi or the roi class to fsaverage
+    def map_fsaverage_resp(hemisphere:str, all_rois=False):
+        if all_rois: fsvg_roi, ch_roi = fsaverage_roi_class, challenge_roi_class
+        else:
+            roi_mapping = list(roi_map.keys())[list(roi_map.values()).index(roi)] # the id of the roi
+            print('roiindex', roi_mapping)
+            challenge_roi = np.asarray(challenge_roi_class == roi_mapping, dtype=int) # set all other roi ids to 0 (False)
+            fsaverage_roi = np.asarray(fsaverage_roi_class == roi_mapping, dtype=int)
+            fsvg_roi, ch_roi = fsaverage_roi, challenge_roi
+        
+        fsaverage_response = np.zeros(len(fsvg_roi))
+        if hemisphere == 'left':
+            fsaverage_response[np.where(fsvg_roi)[0]] = lh_fmri[img,np.where(ch_roi)[0]]
+        elif hemisphere == 'right':
+            fsaverage_response[np.where(fsvg_roi)[0]] = rh_fmri[img,np.where(ch_roi)[0]]
+        return fsaverage_response
+    
+    if full_class: 
+        fsaverage_response = fsaverage_roi_class
+        vmin, vmax, symm_cmap = 1.,3., False
+        title = roi_class
+    else: 
+        fsaverage_response = map_fsaverage_resp(hemisphere)
+        vmin, vmax, symm_cmap = None, None, True
+        title = roi
 
     # Map the fMRI data onto the brain surface map
-    fsaverage_response = np.zeros(len(fsaverage_roi))
-    if hemisphere == 'left':
-        fsaverage_response[np.where(fsaverage_roi)[0]] = lh_fmri[img,np.where(challenge_roi)[0]]
-    elif hemisphere == 'right':
-        fsaverage_response[np.where(fsaverage_roi)[0]] = rh_fmri[img,np.where(challenge_roi)[0]]
-    
+    fsaverage = datasets.fetch_surf_fsaverage('fsaverage')
+
     if not debug:
-        # Create the interactive brain surface map
-        fsaverage = datasets.fetch_surf_fsaverage('fsaverage')
         view = plotting.view_surf(
-            surf_mesh=fsaverage['infl_'+hemisphere],
+            surf_mesh=fsaverage['infl_'+hemisphere], # flat_ , pial_ , sphere_
             surf_map=fsaverage_response,
             bg_map=fsaverage['sulc_'+hemisphere],
             threshold=1e-14,
             cmap=cmap,
             colorbar=True,
-            title=roi+', '+hemisphere+' hemisphere'
+            title=title +', '+hemisphere+' hemisphere',
+            vmax=vmax,
+            vmin=vmin,
+            symmetric_cmap=symm_cmap
             )
         return view
 
-# %% Visualise the brain surface map and the image
-if debug: visualisation_brain_and_image(img=img, hemisphere='left', roi='EBA', cmap='cold_hot')
+# Visualise the brain surface map and the image
+if debug: visualisation_brain_and_image(img=img, hemisphere='left', roi='EBA', cmap='tab10')
 else:
-    view = visualisation_brain_and_image(img=img, hemisphere='left', roi='EBA', cmap='red_transparent_full_alpha_range')
-    view.open_in_browser()
+    view_class = visualisation_brain_and_image(img=img, hemisphere='left', roi='EBA', full_class=True, cmap='brg')
+    view_class.open_in_browser()
+    view1 = visualisation_brain_and_image(img=img, hemisphere='left', roi='EBA', cmap='red_transparent_full_alpha_range')
+    view1.open_in_browser()
     # view2 = visualisation_brain_and_image(img=img, hemisphere='left', roi='FBA-1', cmap='green_transparent_full_alpha_range')
     # view2.open_in_browser()
     # view3 = visualisation_brain_and_image(img=img, hemisphere='left', roi='FBA-2', cmap='blue_transparent_full_alpha_range')
