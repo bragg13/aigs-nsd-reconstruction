@@ -1,15 +1,15 @@
 # %% imports in use
-from pycocotools.coco import COCO
+# from pycocotools.coco import COCO
 import pandas as pd
 debug = False
 
 # %% loading the annotations for val and train
-dataDir='..'
-annFileVal=f'{dataDir}/annotations/instances_val2017.json'
-annFileTrain=f'{dataDir}/annotations/instances_train2017.json'
+# dataDir='..'
+# annFileVal=f'{dataDir}/annotations/instances_val2017.json'
+# annFileTrain=f'{dataDir}/annotations/instances_train2017.json'
 
-coco_val2017=COCO(annFileVal)
-coco_train2017=COCO(annFileTrain)
+# coco_val2017=COCO(annFileVal)
+# coco_train2017=COCO(annFileTrain)
 
 # %% dropping unnecessary columns, and adding Coco categories to nsd-coco dataframe
 def read_and_preprocess(dataDir='..'):
