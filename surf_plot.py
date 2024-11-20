@@ -137,8 +137,9 @@ def visualisation_brain_and_image(img=0, hemisphere='left', roi='EBA', full_clas
 
     # Map the fMRI data onto the brain surface map
     fsaverage = datasets.fetch_surf_fsaverage('fsaverage')
-
+    
     if not debug:
+        plotting.plot_anat()
         view = plotting.view_surf(
             surf_mesh=fsaverage['infl_'+hemisphere], # flat_ , pial_ , sphere_
             surf_map=fsaverage_response,
@@ -158,11 +159,11 @@ if debug: visualisation_brain_and_image(img=img, hemisphere='left', roi='EBA', c
 else:
     view_class = visualisation_brain_and_image(img=img, hemisphere='left', roi='EBA', full_class=True, cmap='brg')
     view_class.open_in_browser()
-    view1 = visualisation_brain_and_image(img=img, hemisphere='left', roi='EBA', cmap='red_transparent_full_alpha_range')
+    view1 = visualisation_brain_and_image(img=img, hemisphere='left', roi='EBA', cmap='blue_transparent_full_alpha_range')
     view1.open_in_browser()
-    # view2 = visualisation_brain_and_image(img=img, hemisphere='left', roi='FBA-1', cmap='green_transparent_full_alpha_range')
+    # view2 = visualisation_brain_and_image(img=img, hemisphere='left', roi='FBA-1', cmap='red_transparent_full_alpha_range')
     # view2.open_in_browser()
-    # view3 = visualisation_brain_and_image(img=img, hemisphere='left', roi='FBA-2', cmap='blue_transparent_full_alpha_range')
+    # view3 = visualisation_brain_and_image(img=img, hemisphere='left', roi='FBA-2', cmap='green_transparent_full_alpha_range')
     # view3.open_in_browser()
     # view4 = visualisation_brain_and_image(img=img, hemisphere='left', roi='mTL-bodies', cmap='Wistia')
     # view4.open_in_browser()
