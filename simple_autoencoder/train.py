@@ -16,12 +16,11 @@ import ml_collections
 import optax
 import tensorflow_datasets as tfds
 from tqdm import tqdm
-
+from nsd_data import get_train_test_datasets, get_batches
 
 def compute_metrics(recon_x, x):
     loss = jnp.mean(jnp.square(recon_x - x))
     return {'loss': loss }
-
 
 def train_step(state, batch, z_rng, latent_dim, l1_coefficient=0.01):
     def loss_fn(params):
@@ -54,8 +53,10 @@ def train_and_evaluate(config):
     rng, key = random.split(rng)
 
     log('Initializing dataset...', 'TRAIN')
-    subject_dataset_train, subject_dataset_test = nsd_data.get_train_test_datasets(subject=3)
-    # train_loader, test_loader = nsd_data.create_loaders(subject_idxs, roi=None, batch_size=config.batch_size)
+    train_ds, test_ds = get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='lh')
+    print(f"training ds shape: {train_ds.shape}")
+    print(f"test ds shape: {test_ds.shape}")
+    train_loader = get_batches(train_ds, config.batch_size)
 
     log('Initializing model...', 'TRAIN')
     # va bene che siano uni en on random gaussian noise?

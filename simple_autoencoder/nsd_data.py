@@ -196,7 +196,7 @@ def get_train_test_indexes(subject=3):
     return train_idxs, test_idxs
 
 
-def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all'):
+def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all') -> tuple:
     """Get training and test fMRI datasets for a specified subject and ROI class.
 
     Args:
@@ -239,23 +239,43 @@ def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all'):
     test_lh_fmri = test_lh_fmri[:, roi_lh]
     test_rh_fmri = test_rh_fmri[:, roi_rh]
 
-    print(f"train_lh_fmri min: {train_lh_fmri.min()}, max: {train_lh_fmri.max()}")
-    print(f"train_rh_fmri min: {train_rh_fmri.min()}, max: {train_rh_fmri.max()}")
-    print(f"train_lh_fmri shape: {train_lh_fmri.shape}")
-    print(f"train_rh_fmri shape: {train_rh_fmri.shape}")
+    # print(f"train_lh_fmri min: {train_lh_fmri.min()}, max: {train_lh_fmri.max()}")
+    # print(f"train_rh_fmri min: {train_rh_fmri.min()}, max: {train_rh_fmri.max()}")
+    # print(f"train_lh_fmri shape: {train_lh_fmri.shape}")
+    # print(f"train_rh_fmri shape: {train_rh_fmri.shape}")
 
-    print(f"test_lh_fmri min: {test_lh_fmri.min()}, max: {test_lh_fmri.max()}")
-    print(f"test_rh_fmri min: {test_rh_fmri.min()}, max: {test_rh_fmri.max()}")
-    print(f"test_lh_fmri shape: {test_lh_fmri.shape}")
-    print(f"test_rh_fmri shape: {test_rh_fmri.shape}")
+    # print(f"test_lh_fmri min: {test_lh_fmri.min()}, max: {test_lh_fmri.max()}")
+    # print(f"test_rh_fmri min: {test_rh_fmri.min()}, max: {test_rh_fmri.max()}")
+    # print(f"test_lh_fmri shape: {test_lh_fmri.shape}")
+    # print(f"test_rh_fmri shape: {test_rh_fmri.shape}")
 
     if hem == 'all':
         train_all_fmri = np.concatenate([train_lh_fmri, train_rh_fmri], axis=1)
         test_all_fmri = np.concatenate([test_lh_fmri, test_rh_fmri], axis=1)
         return train_all_fmri, test_all_fmri
-    if hem == 'lh':
+    elif hem == 'lh':
         return train_lh_fmri, test_lh_fmri
-    if hem == 'rh':
+    elif hem == 'rh':
         return train_rh_fmri, test_rh_fmri
+    else:
+        raise ValueError(f"Invalid hemisphere selection: {hem}. Must be 'all', 'lh', or 'rh'.")
 
-get_train_test_datasets(subject=3, roi_class='floc-bodies')
+def get_batches(fmri, batch_size: int):
+    """Create batches of fMRI data with the specified batch size.
+
+    Args:
+        fmri: Array containing fMRI data to be batched
+        batch_size (int): Size of each batch
+
+    Yields:
+        ndarray: Batch of fMRI data with shape (batch_size, voxels)
+    """
+
+    num_samples = fmri.shape[0]
+    while True:
+        permutation = np.random.permutation(num_samples // batch_size * batch_size)
+        for i in range(0, len(permutation), batch_size):
+            batch_perm = permutation[i:i + batch_size]
+            batch = fmri[batch_perm]
+            # batch_volume = fmri[batch_perm] ... TODO
+            yield batch
