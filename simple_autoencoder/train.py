@@ -26,6 +26,7 @@ def compute_metrics(recon_x, x):
 def train_step(state, batch, z_rng, latent_dim, l1_coefficient=0.01):
     def loss_fn(params):
         fmri_voxels = batch.shape[1]
+        # print(batch.shape)
         recon_x, latent_vec = models.model(latent_dim, fmri_voxels).apply(
             {'params': params}, batch, z_rng
         )
@@ -40,7 +41,7 @@ def train_step(state, batch, z_rng, latent_dim, l1_coefficient=0.01):
 def eval_f(params, batch, z, z_rng, latent_dim):
     def eval_model(ae):
         recon_x, latent_vecs = ae(batch, z_rng)
-        log(f'dim reconx: {recon_x.shape}', 'EVAL_F')
+        # log(f'dim reconx: {recon_x.shape}', 'EVAL_F')
         metrics = compute_metrics(recon_x, batch)
         return metrics, (batch, recon_x), latent_vecs
 
@@ -53,9 +54,7 @@ def train_and_evaluate(config):
     rng, key = random.split(rng)
 
     log('Initializing dataset...', 'TRAIN')
-    idxs = nsd_data.split_idxs()
-    subject_idxs = (idxs['subject_train'], idxs['subject_train'])
-    train_loader, test_loader, train_size, test_size, fmri_voxels = nsd_data.create_loaders(subject_idxs, roi=config.roi, hem=config.hem, batch_size=config.batch_size)
+    subject_dataset_train, subject_dataset_test = nsd_data.get_train_test_datasets(subject=3)
     # train_loader, test_loader = nsd_data.create_loaders(subject_idxs, roi=None, batch_size=config.batch_size)
 
     log('Initializing model...', 'TRAIN')
@@ -99,34 +98,40 @@ def train_and_evaluate(config):
         log(f'Epoch {epoch + 1}/{config.num_epochs}', 'TRAIN LOOP')
 
         # Training loop
-        epoch_loss = 0.0
         for step, batch in tqdm(enumerate(train_loader), total=steps_per_epoch):
             if step >= steps_per_epoch:
                 break
 
             rng, key = random.split(rng)
             state = train_step(state, batch, key, config.latent_dim)
+            metrics, (_batch, reconstructions), latent_vecs = eval_f(
+                state.params, batch, z, eval_rng, config.latent_dim
+            )
+            losses.append(metrics['loss'])
+            plot_results_epoch(_batch, reconstructions, latent_vecs, epoch)
 
         # eval
-        metrics, (batch, reconstructions), latent_vecs = eval_f(
-            state.params, test_batches[epoch], z, eval_rng, config.latent_dim
-        )
-        plot_results_epoch(batch, reconstructions, latent_vecs, epoch)
-        print(
-            'eval epoch: {}, loss: {:.4f}'.format(
-                epoch + 1, metrics['loss']
-            )
-        )
-        losses.append(epoch_loss)
+        # metrics, (_batch, reconstructions), latent_vecs = eval_f(
+        #     state.params, batch, z, eval_rng, config.latent_dim
+        # )
+        # metrics, (batch, reconstructions), latent_vecs = eval_f(
+        #     state.params, test_batches[epoch], z, eval_rng, config.latent_dim
+        # )
+        # print(
+        #     'eval epoch: {}, loss: {:.4f}'.format(
+        #         epoch + 1, metrics['loss']
+        #     )
+        # )
+        # losses.append(metrics['loss'])
 
         # for evolution visualisation
-        print(f"data to rec has shape {data_to_reconstruct.shape} ")
-        metrics, (batch, reconstructions), latent_vecs = eval_f(
-            state.params, data_to_reconstruct, z, eval_rng, config.latent_dim
-        )
-        print(f" rec has shape {reconstructions.shape} ")
-        all_reconstructions.append(reconstructions)
+        # print(f"data to rec has shape {data_to_reconstruct.shape} ")
+        # metrics, (batch, reconstructions), latent_vecs = eval_f(
+        #     state.params, data_to_reconstruct, z, eval_rng, config.latent_dim
+        # )
+        # print(f" rec has shape {reconstructions.shape} ")
+        # all_reconstructions.append(reconstructions)
 
-    plot_first_100vx_over_epochs(np.array(all_reconstructions))
+    # plot_first_100vx_over_epochs(np.array(all_reconstructions))
     # plot_results_before_after_training(batch reconstructions, latent_vec)
     plot_losses(losses)

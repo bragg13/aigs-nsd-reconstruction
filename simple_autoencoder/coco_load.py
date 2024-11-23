@@ -72,12 +72,12 @@ def shared_imgs_df(nsd_coco):
 # %% retrieve subject specific images from nsd_coco (incl categories)
 def subject_dfs(nsd_coco):
     subject_dfs = []
-    print(f'\nsubj_dfs:')
+    # print(f'\nsubj_dfs:')
     for i in range(1, 9):
         img_df = nsd_coco[(nsd_coco[f'subject{i}'] == True) & (nsd_coco['shared1000'] == False)]
         img_df = img_df.drop(columns=subject_cols)
         subject_dfs.append(img_df)
-        print(f'subject{i}: {subject_dfs[i-1].shape[0]} images')
+        # print(f'subject{i}: {subject_dfs[i-1].shape[0]} images')
     return subject_dfs
 
 # subj_dfs = subject_dfs() # for cell based testing

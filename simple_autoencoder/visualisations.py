@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
+from logger import log
+
 def plot_first_100vx_over_epochs(data):
     # take first 100 voxels from the first batch of each epoch
     print('first 100vx shape')
@@ -16,10 +18,11 @@ def plot_first_100vx_over_epochs(data):
 
 
 def plot_results_epoch(batch, reconstructions, latent_vec, epoch):
-    print(f"shape batch is {batch.shape}")
-    print(f"shape recons is {reconstructions.shape}")
-    recon_as_image = np.reshape(reconstructions[0], (173, 21))
-    original_as_image = np.reshape(batch[0], (173, 21))
+    # print(f"shape batch is {batch.shape}")
+    # print(f"shape recons is {reconstructions.shape}")
+    # change this
+    recon_as_image = np.reshape(reconstructions[0], (469, 11))
+    original_as_image = np.reshape(batch[0], (469, 11))
 
     fig2, axs2 = plt.subplots(figsize=(4, 8))
     axs2.scatter(range(len(latent_vec[0])), latent_vec[0], s=np.abs(latent_vec[0])*100)
@@ -52,6 +55,7 @@ def plot_results_before_after_training():
     pass
 
 def plot_losses(losses):
+    log(losses, 'LOSSES')
     plt.figure(figsize=(10,10))
     plt.title('Losses over epochs')
     plt.plot(losses)
@@ -60,7 +64,7 @@ def plot_losses(losses):
     plt.savefig(f'results/losses.png')
     plt.close()
 
-def plot_data_distribution(lh_fmri, rh_fmri):
+def plot_data_distribution(lh_fmri, rh_fmri, train: bool):
     fig, axs = plt.subplots(3, figsize=(15,15))
     if lh_fmri is not None: sns.histplot(lh_fmri.reshape(-1), ax=axs[0], kde=True)
     if rh_fmri is not None: sns.histplot(rh_fmri.reshape(-1), ax=axs[1], kde=True)
@@ -93,5 +97,6 @@ def plot_data_distribution(lh_fmri, rh_fmri):
         print(f"(lh) std: {np.std(lh_fmri)}")
         print(f"(rh) std: {np.std(rh_fmri)}")
 
-        fig.savefig(f'results/data_distribution.png')
+        _type = 'train' if train else 'test'
+        fig.savefig(f'results/{_type}_data_distribution.png')
         plt.close()
