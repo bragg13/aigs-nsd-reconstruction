@@ -17,17 +17,17 @@ def plot_first_100vx_over_epochs(data):
     plt.savefig('results/first100vx.png')
 
 
-def plot_results_epoch(batch, reconstructions, latent_vec, epoch):
+def plot_results_epoch(batch, reconstructions, latent_vec, epoch, step):
     # print(f"shape batch is {batch.shape}")
     # print(f"shape recons is {reconstructions.shape}")
     # change this
-    recon_as_image = np.reshape(reconstructions[0], (469, 11))
-    original_as_image = np.reshape(batch[0], (469, 11))
+    # recon_as_image = np.reshape(reconstructions[0], (469, 11))
+    # original_as_image = np.reshape(batch[0], (469, 11))
 
     fig2, axs2 = plt.subplots(figsize=(4, 8))
     axs2.scatter(range(len(latent_vec[0])), latent_vec[0], s=np.abs(latent_vec[0])*100)
     axs2.set_title('Latent vector View')
-    fig2.savefig(f'results/latent_vec_{epoch}.png')
+    fig2.savefig(f'results/latent_vec_{epoch}_{step}.png')
     plt.close()
 
     # Visualization
@@ -48,7 +48,7 @@ def plot_results_epoch(batch, reconstructions, latent_vec, epoch):
     plt.colorbar()
 
     plt.tight_layout()
-    plt.savefig(f'results/reconstruction_debug_{epoch}.png')
+    plt.savefig(f'results/reconstruction_debug_{epoch}_{step}.png')
     plt.close()
 
 def plot_results_before_after_training():

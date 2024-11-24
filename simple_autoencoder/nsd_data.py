@@ -211,7 +211,7 @@ def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all') -> tu
             For hem='all', arrays contain concatenated data from both hemispheres.
             For hem='lh'/'rh', arrays contain data from specified hemisphere only.
     """
-    print('getting datasets...')
+    log('creating datasets...', 'DATA')
     # get the paths to the fmri data
     fmri_base_path = os.path.join("../data", "subj0"+str(subject), "training_split", "training_fmri")
     lh_fmri_path = os.path.join(fmri_base_path, "lh_training_fmri.npy")
