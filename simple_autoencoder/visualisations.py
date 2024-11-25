@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-
 from logger import log
 
 def plot_first_100vx_over_epochs(data):
@@ -54,14 +53,16 @@ def plot_results_epoch(batch, reconstructions, latent_vec, epoch, step):
 def plot_results_before_after_training():
     pass
 
-def plot_losses(losses):
-    log(losses, 'LOSSES')
+def plot_losses(train_losses, eval_losses, test_losses):
     plt.figure(figsize=(10,10))
     plt.title('Losses over epochs')
-    plt.plot(losses)
+    plt.plot(train_losses, label='Train Loss', color='blue')
+    plt.plot(eval_losses, label='Validation Loss', color='orange')
+    plt.plot(test_losses, label='Test Loss', color='red')
     plt.xlabel('epochs')
     plt.ylabel('loss')
-    plt.savefig(f'results/losses.png')
+    plt.savefig('results/losses.png')
+    plt.legend()
     plt.close()
 
 def plot_data_distribution(lh_fmri, rh_fmri, train: bool):
