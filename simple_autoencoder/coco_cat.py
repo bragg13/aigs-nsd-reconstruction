@@ -79,7 +79,7 @@ def getSupercategoryNames(catIdToCat, catIds):
     return np.unique([catIdToCat[c][0]['supercategory'] for c in catIds])
 
 # %% get categories
-def extractCategories(shared_df):
+def extract_categories(shared_df):
     minSize = 227 # from og code
     categories = dict()
 
