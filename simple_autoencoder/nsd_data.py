@@ -7,7 +7,6 @@ import jax.numpy as jnp
 from tqdm.gui import tqdm
 import pandas as pd
 import coco_load as cl
-import nsd_data
 import matplotlib.pyplot as plt
 
 # from visualisations import plot_data_distribution
@@ -25,23 +24,23 @@ def images_to_nsd_df(subject=3):
     for i, filename in enumerate(images):
         start_i = filename.find("nsd-") + len("nds-")
         nsd_index = int(filename[start_i : start_i + 5])
-        images_to_nsd[i] = [nsd_index] # are you sure this works andrea?
+        images_to_nsd[i] = [i, nsd_index]
     images_to_nsd = pd.DataFrame.from_dict(
-        images_to_nsd, orient="index", columns=["nsdId"] # are you sure this works andrea?
+        images_to_nsd, orient="index", columns=["listIdx", "nsdId"] # we need listIdx for the shared indices
     )
     log(f"total images for subject {subject}: {len(images_to_nsd)}", 'DATA')
     return images_to_nsd
 
-# andrea ill leave this here you can replace as you want, images_to_nsd is used in get_shared_inidces and get_train_test_indices
+# andrea i'll leave this here, you can restructure as you want, but images_to_nsd is used in get_shared_inidces and get_train_test_indices
 images_to_nsd = images_to_nsd_df(subject=3)
 
 def get_shared_indices(category: str):
     coco_loaded = cl.nsd_coco
     shared_df = cl.getSharedDf(coco_loaded).merge(images_to_nsd, on='nsdId')
-    shared_pers, shared_not_pers = cl.splitByCategory(shared_df, category)
+    shared_category, shared_not_category = cl.splitByCategory(shared_df, category)
     # category and not indices
-    category_idxs = shared_pers["listIdx"].values
-    not_category_idxs = shared_not_pers["listIdx"].values
+    category_idxs = shared_category["listIdx"].values
+    not_category_idxs = shared_not_category["listIdx"].values
     return category_idxs, not_category_idxs
 
 def get_train_test_indices(subject=3):
