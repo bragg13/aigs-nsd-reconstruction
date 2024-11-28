@@ -1,8 +1,10 @@
 .venv/
 annotations/
 data/
-panoptic_annotations/
 simple_autoencoder/__pycache__/
 .ropeproject/
 *.pyc
 *.DS_STORE
+panoptic_annotations/
+__pycache__/
+

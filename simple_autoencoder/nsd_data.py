@@ -10,7 +10,6 @@ import pandas as pd
 import coco_load as cl
 import matplotlib.pyplot as plt
 from jax import random
-
 # from visualisations import plot_data_distribution
 from sklearn.model_selection import train_test_split
 from roi import load_roi_data
@@ -29,6 +28,7 @@ def images_to_nsd_df(subject=3):
         images_to_nsd[i] = [i, nsd_index]
     images_to_nsd = pd.DataFrame.from_dict(
         images_to_nsd, orient="index", columns=["listIdx", "nsdId"] # we need listIdx for the shared indices
+
     )
     log(f"total images for subject {subject}: {len(images_to_nsd)}", 'DATA')
     return images_to_nsd
