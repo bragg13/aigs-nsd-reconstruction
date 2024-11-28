@@ -15,7 +15,7 @@ class Encoder(nn.Module):
   @nn.compact
   def __call__(self, x, dropout_rng, training: bool = True):
     # reduces the dimensionality of the input by a factor 1.5, 3, 6, 12 (?)
-    layers_div = [2, 3, 6, 10]
+    layers_div = [3, 6]
     for i, div in enumerate(layers_div):
         x = nn.Dense(self.fmri_dim // div, name=f'fc{i}')(x)
         x = nn.BatchNorm(
@@ -24,9 +24,9 @@ class Encoder(nn.Module):
                     epsilon=1e-5
                 )(x)
         x = nn.gelu(x)
-        x = nn.Dropout(
-                    rate=self.dropout_rate,
-                )(x, deterministic=not training, rng=dropout_rng)
+        # x = nn.Dropout(
+        #             rate=self.dropout_rate,
+        #         )(x, deterministic=not training, rng=dropout_rng)
 
     # final layer
     x = nn.Dense(self.latent_dim, name=f'fc{len(layers_div)}')(x)
@@ -41,7 +41,7 @@ class Decoder(nn.Module):
   @nn.compact
   def __call__(self, z, dropout_rng, training: bool):
     # increases the dimensionality of the input by a factor 1.5, 3, 6, 12 (?)
-    layers_div = [10, 6, 3, 2]
+    layers_div = [6, 3]
     for i, div in enumerate(layers_div):
         z = nn.Dense(self.fmri_dim // div, name=f'fc{i}')(z)
         z = nn.BatchNorm(
@@ -50,9 +50,9 @@ class Decoder(nn.Module):
                     epsilon=1e-5
                 )(z)
         z = nn.gelu(z)
-        z = nn.Dropout(
-                    rate=self.dropout_rate,
-                )(z, deterministic=not training, rng=dropout_rng)
+        # z = nn.Dropout(
+        #             rate=self.dropout_rate,
+        #         )(z, deterministic=not training, rng=dropout_rng)
 
     # final layer
     z = nn.Dense(self.fmri_dim, name=f'fc{len(layers_div)}')(z)
