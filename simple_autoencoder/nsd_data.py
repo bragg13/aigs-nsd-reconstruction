@@ -10,6 +10,7 @@ import pandas as pd
 import coco_load as cl
 import nsd_data
 import matplotlib.pyplot as plt
+from jax import random
 
 # from visualisations import plot_data_distribution
 from sklearn.model_selection import train_test_split
@@ -138,8 +139,21 @@ def get_train_test_cifar100():
         return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
 
     # load the mnist dataset from tfds
-    mnist = tfds.load("cifar100", split='train')
+    mnist = tfds.load("cifar10", split='train')
     x_data = jnp.array([rgb2gray(x["image"]) for x in tfds.as_numpy(mnist)]).reshape(-1, 32*32)
+    x_data = x_data / 255.0
+    print(x_data.shape)
+    train, test = train_test_split(np.arange(len(x_data)), test_size=0.2, random_state=42)
+    print(len(train), len(test))
+    return x_data[train], x_data[test]
+
+def get_train_test_stl():
+    def rgb2gray(rgb):
+        return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
+
+    # load the mnist dataset from tfds
+    mnist = tfds.load("stl10", split='train')
+    x_data = jnp.array([rgb2gray(x["image"]) for x in tfds.as_numpy(mnist)]).reshape(-1, 96*96)
     x_data = x_data / 255.0
     print(x_data.shape)
     train, test = train_test_split(np.arange(len(x_data)), test_size=0.2, random_state=42)
@@ -158,8 +172,9 @@ def get_batches(fmri, key, batch_size: int):
     """
 
     num_samples = fmri.shape[0]
-    permutation = np.random.permutation(num_samples // batch_size * batch_size)
-    return permutation
+    permutation = random.permutation(key, num_samples // batch_size * batch_size)
+    # print(f"permutatin first: {permutation[:5]}")
+    return fmri[permutation]
 
     # while True:
     #     for i in range(0, len(permutation), batch_size):
