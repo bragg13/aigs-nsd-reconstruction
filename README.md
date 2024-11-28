@@ -1,7 +1,6 @@
 # aigs-nsd-reconstruction
 AIGS final project repository
 
-
 # How to run
 1. Install python version 3.11.10
 ```bash
@@ -17,8 +16,8 @@ pyenv install 3.11.10 # or 3.11.9 if .10 is not available
 
 2. Create and activate virtual environment
 ```bash
-pyenv exec python3 -m venv .venv-aigs
-source .venv-aigs/bin/activate # macosx
+pyenv exec python3 -m venv .venv
+source .venv/bin/activate # macosx
 .venv-aigs/Scripts/activate # windows powershell
 ```
 
@@ -43,7 +42,6 @@ unzip annotations_trainval2017.zip
 5. Run the code
 - for models
     ```bash
-    python3 vae_main.py --config=configs/default.py # for VAE
     python3 ae_main.py --config=configs/default.py # for simple AE
     ```
 - for datasets

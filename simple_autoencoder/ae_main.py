@@ -1,63 +1,36 @@
-# Copyright 2024 The Flax Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """Main file for running the AE example.
 
 This file is intentionally kept short. The majority for logic is in libraries
 that can be easily tested and imported in Colab.
 """
 
-from absl import app
-from absl import flags
-from absl import logging
+# from absl import app
+# from absl import flags
+# from absl import logging
+import sys
 from clu import platform
 import jax
-from ml_collections import config_flags
+from logger import log
 import tensorflow as tf
-
+from omegacli import OmegaConf, generate_config_template, parse_config
+import argparse
 import train
 
-
-FLAGS = flags.FLAGS
-
-config_flags.DEFINE_config_file(
-    'config',
-    None,
-    'File path to the training hyperparameter configuration.',
-    lock_config=True,
-)
-
-
 def main(argv):
-  if len(argv) > 1:
-    raise app.UsageError('Too many command-line arguments.')
+    parser = argparse.ArgumentParser("SAE model")
+    parser.add_argument("--learning_rate", dest='config.learning_rate', type=float, default=0.0001)
+    parser.add_argument("--latent_dim", dest='config.latent_dim', type=int, default=30)
+    parser.add_argument("--batch_size", dest='config.batch_size', type=int, default=30)
+    parser.add_argument("--num_epochs", dest='config.num_epochs', type=int, default=15)
+    parser.add_argument("--roi", dest='config.roi', default='floc-bodies') # floc-bodies, ...
+    parser.add_argument("--hem", dest='config.hem', default='lh') # lh, rh, all
+    parser.add_argument("--ds", dest='config.ds', default='fmri') # mnist, cifar100, fmri
+    user_provided_args, default_args = OmegaConf.from_argparse(parser)
 
-  # Make sure tf does not allocate gpu memory.
-  tf.config.experimental.set_visible_devices([], 'GPU')
-
-  logging.info('JAX process: %d / %d', jax.process_index(), jax.process_count())
-  logging.info('JAX local devices: %r', jax.local_devices())
-
-  # Add a note so that we can tell which task is which JAX host.
-  # (Depending on the platform task 0 is not guaranteed to be host 0)
-  platform.work_unit().set_task_status(
-      f'process_index: {jax.process_index()}, '
-      f'process_count: {jax.process_count()}'
-  )
-
-  train.train_and_evaluate(FLAGS.config)
+    log(user_provided_args, "MAIN")
+    train.train_and_evaluate(user_provided_args.config)
 
 
 if __name__ == '__main__':
-  app.run(main)
+    argv = sys.argv
+    main(argv)

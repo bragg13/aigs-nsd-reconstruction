@@ -1,7 +1,10 @@
-myenv/
-.venv-aigs/
-data/
-.DS_Store
+.venv/
 annotations/
+data/
+simple_autoencoder/__pycache__/
+.ropeproject/
+*.pyc
+*.DS_STORE
 panoptic_annotations/
 __pycache__/
+
