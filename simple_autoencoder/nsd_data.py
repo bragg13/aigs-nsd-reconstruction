@@ -8,7 +8,6 @@ import jax.numpy as jnp
 from tqdm.gui import tqdm
 import pandas as pd
 import coco_load as cl
-import nsd_data
 import matplotlib.pyplot as plt
 from jax import random
 
@@ -17,16 +16,36 @@ from sklearn.model_selection import train_test_split
 from roi import load_roi_data
 # jnp.fft.fft2(matirx)
 
+def images_to_nsd_df(subject=3):
+    # training and test images list, sorted
+    images_path = os.path.join("../data", "subj0"+str(subject), "training_split", "training_images")
+    images = sorted(os.listdir(images_path))
 
-def get_shared_indices():
-    # shared_df = merge(cl.getSharedDf(coco_loaded))
-    # shared_pers, shared_not_pers = cl.splitByCategory(shared_df, category)
-    # # category and not indices
-    # indices[f"shared_{category}"] = shared_pers["listIdx"].values
-    # indices[f"shared_not_{category}"] = shared_not_pers["listIdx"].values
-    pass
+    # make a dataframe with mapping image-nsd_index
+    images_to_nsd= {}
+    for i, filename in enumerate(images):
+        start_i = filename.find("nsd-") + len("nds-")
+        nsd_index = int(filename[start_i : start_i + 5])
+        images_to_nsd[i] = [i, nsd_index]
+    images_to_nsd = pd.DataFrame.from_dict(
+        images_to_nsd, orient="index", columns=["listIdx", "nsdId"] # we need listIdx for the shared indices
+    )
+    log(f"total images for subject {subject}: {len(images_to_nsd)}", 'DATA')
+    return images_to_nsd
 
-def get_train_test_indexes(subject=3):
+# andrea i'll leave this here, you can restructure as you want, but images_to_nsd is used in get_shared_inidces and get_train_test_indices
+images_to_nsd = images_to_nsd_df(subject=3)
+
+def get_shared_indices(category: str):
+    coco_loaded = cl.nsd_coco
+    shared_df = cl.getSharedDf(coco_loaded).merge(images_to_nsd, on='nsdId')
+    shared_category, shared_not_category = cl.splitByCategory(shared_df, category)
+    # category and not indices
+    category_idxs = shared_category["listIdx"].values
+    not_category_idxs = shared_not_category["listIdx"].values
+    return category_idxs, not_category_idxs
+
+def get_train_test_indices(subject=3):
     """
     Get the image indices for training and testing sets for a given subject.
 
@@ -38,20 +57,6 @@ def get_train_test_indexes(subject=3):
             - train_idxs (np.ndarray): Indices for training set (90% of data)
             - test_idxs (np.ndarray): Indices for test set (10% of data)
     """
-    # training and test images list, sorted
-    images_path = os.path.join("../data", "subj0"+str(subject), "training_split", "training_images")
-    images = sorted(os.listdir(images_path))
-
-    # make a dataframe with mapping image-nsd_index
-    images_to_nsd= {}
-    for i, filename in enumerate(images):
-        start_i = filename.find("nsd-") + len("nds-")
-        nsd_index = int(filename[start_i : start_i + 5])
-        images_to_nsd[i] = [nsd_index]
-    images_to_nsd = pd.DataFrame.from_dict(
-        images_to_nsd, orient="index", columns=["nsdId"]
-    )
-    print(f"total images for subject {subject}: {len(images_to_nsd)}")
 
     # map coco categories to the pics in the dataset
     coco_loaded = cl.nsd_coco
@@ -63,8 +68,6 @@ def get_train_test_indexes(subject=3):
 
 def normalise(_max, _min, data):
    return jnp.array((data - _min) / (_max - _min))
-
-
 
 def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all') -> tuple:
     """Get training and test fMRI datasets for a specified subject and ROI class.
@@ -88,7 +91,7 @@ def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all') -> tu
     rh_fmri_path = os.path.join(fmri_base_path, "rh_training_fmri.npy")
 
     # get the indices for training and testing
-    train_idxs, test_idxs = get_train_test_indexes(subject)
+    train_idxs, test_idxs = get_train_test_indices(subject)
 
     # get the ROI mask
     roi_data = load_roi_data(subject=3)
@@ -175,9 +178,3 @@ def get_batches(fmri, key, batch_size: int):
     permutation = random.permutation(key, num_samples // batch_size * batch_size)
     # print(f"permutatin first: {permutation[:5]}")
     return fmri[permutation]
-
-    # while True:
-    #     for i in range(0, len(permutation), batch_size):
-    #         batch_perm = permutation[i:i + batch_size]
-    #         batch = fmri[batch_perm]
-    #         yield batch
