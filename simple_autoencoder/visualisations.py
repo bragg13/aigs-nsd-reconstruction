@@ -3,17 +3,6 @@ import numpy as np
 import seaborn as sns
 from logger import log
 
-def plot_first_100vx_over_epochs(data):
-    # take first 100 voxels from the first batch of each epoch
-    print('first 100vx shape')
-    print(data.shape)
-    data = data[:, 0, :100]
-    print(data.shape)
-
-    plt.figure(figsize=(15,15))
-    plt.title('First 100 voxels over epochs')
-    plt.imshow(data, aspect='auto', cmap='gray')
-    plt.savefig('results/first100vx.png')
 
 
 def plot_results_epoch(batch, reconstructions, latent_vec, epoch, step):
@@ -53,51 +42,74 @@ def plot_results_epoch(batch, reconstructions, latent_vec, epoch, step):
 def plot_results_before_after_training():
     pass
 
-def plot_losses(train_losses, eval_losses, test_losses):
+def plot_losses(train_losses, eval_losses, steps_per_epoch):
     plt.figure(figsize=(10,10))
-    plt.title('Losses over epochs')
-    plt.plot(train_losses, label='Train Loss', color='blue')
-    plt.plot(eval_losses, label='Validation Loss', color='orange')
-    plt.plot(test_losses, label='Test Loss', color='red')
-    plt.xlabel('epochs')
+    plt.title('Train Losses over steps')
+    plt.plot(train_losses, label='train', color='blue')
+    plt.plot(eval_losses, label='eval', color='orange')
+    plt.xlabel('steps')
+
+    # add xticks for epochs
+    plt.xticks(np.arange(0, len(train_losses), steps_per_epoch))
     plt.ylabel('loss')
-    plt.savefig('results/losses.png')
+    plt.grid()
     plt.legend()
+    plt.savefig(f'results/losses.png')
     plt.close()
 
-def plot_data_distribution(lh_fmri, rh_fmri, train: bool):
-    fig, axs = plt.subplots(3, figsize=(15,15))
-    if lh_fmri is not None: sns.histplot(lh_fmri.reshape(-1), ax=axs[0], kde=True)
-    if rh_fmri is not None: sns.histplot(rh_fmri.reshape(-1), ax=axs[1], kde=True)
-    axs[0].set_title('Distribution of fMRI Data (lh)')
-    axs[0].set_xlabel('Voxel Values')
-    axs[0].set_ylabel('Frequency')
-    axs[1].set_title('Distribution of fMRI Data (rh)')
-    axs[1].set_xlabel('Voxel Values')
-    axs[1].set_ylabel('Frequency')
 
-    # Plot overlapping distributions on third axis
-    if lh_fmri is not None and rh_fmri is not None:
-        # Create normal distribution with same mean/std as data
-        x = np.linspace(min(lh_fmri.min(), rh_fmri.min()), max(lh_fmri.max(), rh_fmri.max()), 100)
-        mu = np.mean([lh_fmri.mean(), rh_fmri.mean()])
-        sigma = np.mean([lh_fmri.std(), rh_fmri.std()])
-        normal = 1/(sigma * np.sqrt(2 * np.pi)) * np.exp( - (x - mu)**2 / (2 * sigma**2))
+def plot_latent_space(latent_vectors, categories):
+    points = []
+    points = np.array(latent_vectors)
 
-        sns.histplot(data=lh_fmri.reshape(-1), ax=axs[2], stat='density', color='blue', alpha=0.3, label='LH fMRI')
-        sns.histplot(data=rh_fmri.reshape(-1), ax=axs[2], stat='density', color='red', alpha=0.3, label='RH fMRI')
-        axs[2].plot(x, normal, color='green', label='Normal Distribution')
-        axs[2].legend()
-        # TODO: problema, la media e mu sono settati sulla medai e il mu delle distribuzioni, dpovrebber essre sullo zero forse?
-        axs[2].set_title('Overlapping Distributions')
-        axs[2].set_xlabel('Voxel Values')
-        axs[2].set_ylabel('Density')
+    # Creating a scatter plot
+    fig, ax = plt.subplots(figsize=(10, 10))
+    scatter = ax.scatter(x=points[:, 0], y=points[:, 1], s=2.0,
+                c=categories, cmap='tab10', alpha=0.9, zorder=2)
 
-        print(f"(lh) Mean: {np.mean(lh_fmri)}")
-        print(f"(rh) Mean: {np.mean(rh_fmri)}")
-        print(f"(lh) std: {np.std(lh_fmri)}")
-        print(f"(rh) std: {np.std(rh_fmri)}")
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
 
-        _type = 'train' if train else 'test'
-        fig.savefig(f'results/{_type}_data_distribution.png')
-        plt.close()
+    plt.show()
+    ax.grid(True, color="lightgray", alpha=1.0, zorder=0)
+
+    # Do not show but only save the plot in training
+    plt.savefig("results/ls.png", bbox_inches="tight")
+    plt.close() # don't forget to close the plot, or it is always in memory
+
+# convert image sequence to a gif file
+# def save_gif():
+
+#   frames = []
+#   imgs = sorted(os.listdir("./ScatterPlots"))
+
+#   for im in imgs:
+#       new_frame = Image.open("./ScatterPlots/" + im)
+#       frames.append(new_frame)
+
+#   frames[0].save("latentspace.gif", format="GIF",
+#                  append_images=frames[1:],
+#                  save_all=True,
+#                  duration=200, loop=0)
+
+def plot_original_reconstruction(originals, reconstructions, dataset, epoch, step):
+    ds_sizes = {
+        'mnist': (28, 28),
+        'cifar100': (32, 32),
+        'fmri': (100, 32)
+    }
+    fig,axs = plt.subplots(5, 3, figsize=(15,15))
+    axs[0, 0].set_title('original')
+    axs[0, 1].set_title('reconstructed')
+    axs[0, 2].set_title('difference')
+
+    # plot the first 5 samples of the first batch evaluated
+    h, w = ds_sizes[dataset]
+    for i in range(5):
+        original = originals[i][:h*w].reshape(h, w) #[:3600].reshape(36, 100)
+        reconstruction = reconstructions[i][:h*w].reshape(h, w)
+        axs[i, 0].imshow(original, cmap='gray')
+        axs[i, 1].imshow(reconstruction, cmap='gray')
+        axs[i, 2].imshow(np.floor(original*100)/100 - np.floor(reconstruction*100)/100, cmap='gray')
+
+    fig.savefig(f'./results/epoch_{epoch}_step_{step}.png')

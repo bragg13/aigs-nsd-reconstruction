@@ -1,5 +1,6 @@
 # import libraries
 from logger import log
+import tensorflow_datasets as tfds
 import os
 import numpy as np
 from pathlib import Path
@@ -59,6 +60,10 @@ def get_train_test_indexes(subject=3):
     train_idxs, test_idxs = train_test_split(np.arange(len(subject_images)), test_size=0.1, random_state=42)
     return train_idxs, test_idxs
 
+def normalise(_max, _min, data):
+   return jnp.array((data - _min) / (_max - _min))
+
+
 
 def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all') -> tuple:
     """Get training and test fMRI datasets for a specified subject and ROI class.
@@ -103,28 +108,45 @@ def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all') -> tu
     test_lh_fmri = test_lh_fmri[:, roi_lh]
     test_rh_fmri = test_rh_fmri[:, roi_rh]
 
-    # print(f"train_lh_fmri min: {train_lh_fmri.min()}, max: {train_lh_fmri.max()}")
-    # print(f"train_rh_fmri min: {train_rh_fmri.min()}, max: {train_rh_fmri.max()}")
-    # print(f"train_lh_fmri shape: {train_lh_fmri.shape}")
-    # print(f"train_rh_fmri shape: {train_rh_fmri.shape}")
-
-    # print(f"test_lh_fmri min: {test_lh_fmri.min()}, max: {test_lh_fmri.max()}")
-    # print(f"test_rh_fmri min: {test_rh_fmri.min()}, max: {test_rh_fmri.max()}")
-    # print(f"test_lh_fmri shape: {test_lh_fmri.shape}")
-    # print(f"test_rh_fmri shape: {test_rh_fmri.shape}")
+    _max = max(train_lh_fmri.max(), train_rh_fmri.max(), test_lh_fmri.max(), test_rh_fmri.max())
+    _min = min(train_lh_fmri.min(), train_rh_fmri.min(), test_lh_fmri.min(), test_rh_fmri.min())
 
     if hem == 'all':
         train_all_fmri = np.concatenate([train_lh_fmri, train_rh_fmri], axis=1)
         test_all_fmri = np.concatenate([test_lh_fmri, test_rh_fmri], axis=1)
-        return train_all_fmri, test_all_fmri
+        return normalise(_max, _min, train_all_fmri), normalise(_max, _min, test_all_fmri)
+        # return train_all_fmri, test_all_fmri
     elif hem == 'lh':
-        return train_lh_fmri, test_lh_fmri
+        return normalise(_max, _min, train_lh_fmri), normalise(_max, _min, test_lh_fmri)
     elif hem == 'rh':
-        return train_rh_fmri, test_rh_fmri
+        return normalise(_max, _min, train_rh_fmri), normalise(_max, _min, test_rh_fmri)
     else:
         raise ValueError(f"Invalid hemisphere selection: {hem}. Must be 'all', 'lh', or 'rh'.")
 
-def get_batches(fmri, batch_size: int):
+def get_train_test_mnist():
+    # load the mnist dataset from tfds
+    mnist = tfds.load("mnist", split='train')
+    x_data = jnp.array([x["image"] for x in tfds.as_numpy(mnist)]).reshape(-1, 28*28)
+    x_data = x_data / 255.0
+    print(x_data.shape)
+    train, test = train_test_split(np.arange(len(x_data)), test_size=0.2, random_state=42)
+    print(len(train), len(test))
+    return x_data[train], x_data[test]
+
+def get_train_test_cifar100():
+    def rgb2gray(rgb):
+        return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
+
+    # load the mnist dataset from tfds
+    mnist = tfds.load("cifar100", split='train')
+    x_data = jnp.array([rgb2gray(x["image"]) for x in tfds.as_numpy(mnist)]).reshape(-1, 32*32)
+    x_data = x_data / 255.0
+    print(x_data.shape)
+    train, test = train_test_split(np.arange(len(x_data)), test_size=0.2, random_state=42)
+    print(len(train), len(test))
+    return x_data[train], x_data[test]
+
+def get_batches(fmri, key, batch_size: int):
     """Create batches of fMRI data with the specified batch size.
 
     Args:
@@ -136,10 +158,11 @@ def get_batches(fmri, batch_size: int):
     """
 
     num_samples = fmri.shape[0]
-    while True:
-        permutation = np.random.permutation(num_samples // batch_size * batch_size)
-        for i in range(0, len(permutation), batch_size):
-            batch_perm = permutation[i:i + batch_size]
-            batch = fmri[batch_perm]
-            # batch_volume = fmri[batch_perm] ... TODO
-            yield batch
+    permutation = np.random.permutation(num_samples // batch_size * batch_size)
+    return permutation
+
+    # while True:
+    #     for i in range(0, len(permutation), batch_size):
+    #         batch_perm = permutation[i:i + batch_size]
+    #         batch = fmri[batch_perm]
+    #         yield batch

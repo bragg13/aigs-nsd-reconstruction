@@ -1,5 +1,5 @@
 
-"""VAE model definitions."""
+"""AE model definitions."""
 
 from flax import linen as nn
 from jax import random
@@ -9,32 +9,55 @@ class Encoder(nn.Module):
   """AE Encoder."""
 
   latent_dim: int
+  fmri_dim: int
+  dropout_rate: float = 0.1
 
   @nn.compact
-  def __call__(self, x):
-    x = nn.Dense(2048, name='fc1')(x)
-    x = nn.relu(x)
+  def __call__(self, x, dropout_rng, training: bool = True):
+    # reduces the dimensionality of the input by a factor 1.5, 3, 6, 12 (?)
+    layers_div = [3, 6, 12]
+    for i, div in enumerate(layers_div):
+        x = nn.Dense(self.fmri_dim // div, name=f'fc{i}')(x)
+        x = nn.BatchNorm(
+                    use_running_average=not training,
+                    momentum=0.9,
+                    epsilon=1e-5
+                )(x)
+        x = nn.relu(x)
+        x = nn.Dropout(
+                    rate=self.dropout_rate,
+                )(x, deterministic=not training, rng=dropout_rng)
 
-    x = nn.Dense(1024, name='fc2')(x)
-    x = nn.relu(x)
-
-    x = nn.Dense(self.latent_dim, name='fc3')(x)
+    # final layer
+    x = nn.Dense(self.latent_dim, name=f'fc{len(layers_div)}')(x)
     return x
 
 class Decoder(nn.Module):
   """AE Decoder."""
 
   fmri_dim: int
+  dropout_rate: float = 0.1
 
   @nn.compact
-  def __call__(self, z):
-    z = nn.Dense(1024, name='fc1')(z)
-    z = nn.relu(z)
+  def __call__(self, z, dropout_rng, training: bool):
+    # increases the dimensionality of the input by a factor 1.5, 3, 6, 12 (?)
+    layers_div = [12, 6, 3]
+    for i, div in enumerate(layers_div):
+        z = nn.Dense(self.fmri_dim // div, name=f'fc{i}')(z)
+        z = nn.BatchNorm(
+                    use_running_average=not training,
+                    momentum=0.9,
+                    epsilon=1e-5
+                )(z)
+        z = nn.relu(z)
+        z = nn.Dropout(
+                    rate=self.dropout_rate,
+                )(z, deterministic=not training, rng=dropout_rng)
 
-    z = nn.Dense(2048, name='fc2')(z)
-    z = nn.relu(z)
+    # final layer
+    z = nn.Dense(self.fmri_dim, name=f'fc{len(layers_div)}')(z)
+    z = nn.sigmoid(z)
 
-    z = nn.Dense(self.fmri_dim, name='fc3')(z)
     return z
 
 
@@ -43,18 +66,16 @@ class AE(nn.Module):
 
   latent_dim: int #= 3000
   fmri_dim: int # = 3633 #7266
+  dropout_rate: float = 0.1
 
   def setup(self):
-    self.encoder = Encoder(self.latent_dim)
-    self.decoder = Decoder(self.fmri_dim)
+    self.encoder = Encoder(self.latent_dim, self.fmri_dim, self.dropout_rate)
+    self.decoder = Decoder(self.fmri_dim, self.dropout_rate)
 
-  def __call__(self, x, z_rng):
-    latent_vec = self.encoder(x)
-    recon_x = self.decoder(latent_vec)
+  def __call__(self, x, dropout_rng, training: bool = True):
+    latent_vec = self.encoder(x, dropout_rng=dropout_rng, training=training)
+    recon_x = self.decoder(latent_vec, dropout_rng=dropout_rng, training=training)
     return recon_x, latent_vec
 
-  def generate_fmri_from_latent_vec(self, z):
-    return self.decoder(z)
-
-def model(latent_dim, fmri_dim):
-  return AE(latent_dim=latent_dim, fmri_dim=fmri_dim)
+def model(latent_dim, fmri_dim, dropout_rate=0.1):
+  return AE(latent_dim=latent_dim, fmri_dim=fmri_dim, dropout_rate=dropout_rate)

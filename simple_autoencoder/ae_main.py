@@ -24,6 +24,7 @@ def main(argv):
     parser.add_argument("--num_epochs", dest='config.num_epochs', type=int, default=15)
     parser.add_argument("--roi", dest='config.roi', default='floc-bodies') # floc-bodies, ...
     parser.add_argument("--hem", dest='config.hem', default='lh') # lh, rh, all
+    parser.add_argument("--ds", dest='config.ds', default='fmri') # mnist, cifar100, fmri
     user_provided_args, default_args = OmegaConf.from_argparse(parser)
 
     log(user_provided_args, "MAIN")
