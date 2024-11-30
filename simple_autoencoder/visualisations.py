@@ -99,7 +99,7 @@ def plot_original_reconstruction(originals, reconstructions, dataset, epoch ):
     axs[0, 0].set_title('original')
     axs[0, 1].set_title('reconstructed')
     axs[0, 2].set_title('difference')
-    print(originals.shape)
+    # print(originals.shape)
 
     # plot the first 5 samples of the first batch evaluated
     h, w = ds_sizes[dataset]
@@ -112,3 +112,7 @@ def plot_original_reconstruction(originals, reconstructions, dataset, epoch ):
         axs[i, 2].imshow(np.floor(original*100)/100 - np.floor(reconstruction*100)/100, cmap='gray')
 
     fig.savefig(f'./results/epoch_{epoch}.png')
+
+def plot_original_reconstruction_fmri(originals, reconstructions, epoch):
+    # TODO: implement to show the brain surface with the original and reconstructed fmri data
+    pass

@@ -127,8 +127,6 @@ def train_and_evaluate(config):
     train_size = train_ds.shape[0]
     fmri_voxels = train_ds.shape[1]
 
-    # print(train_ds.min(), train_ds.max())
-
     log('Initializing model...', 'TRAIN')
     # va bene che siano uni o random gaussian noise?
     init_data = jnp.ones((config.batch_size, fmri_voxels), jnp.float32)
@@ -151,15 +149,12 @@ def train_and_evaluate(config):
     print("Validation data stats:", validation_loader.min(), validation_loader.max(), validation_loader.mean())
 
     for epoch in range(config.num_epochs):
-        # log(f'Epoch {epoch + 1}/{config.num_epochs}', 'TRAIN LOOP')
         rng, epoch_key = jax.random.split(rng)
         validation_step = 0
         val_loss = 100
 
         # Training loop
         for step in (pbar := tqdm(range(0, len(train_loader), config.batch_size), total=steps_per_epoch)):
-            # if step >= steps_per_epoch:
-            #     break
 
             batch = train_loader[step:step+config.batch_size]
             state, loss = train_step(state, batch, epoch_key, config.latent_dim, config.ds)
@@ -197,16 +192,3 @@ def train_and_evaluate(config):
         validation_loader = get_batches(validation_ds, key2, config.batch_size)
 
     plot_losses(train_losses, eval_losses, steps_per_epoch)
-
-    # plot the latent space
-    # final_variables = {'params': state.params, 'batch_stats': state.batch_stats}
-    # dropout_rng, key = random.split(rng)
-    # latent_vectors = []
-    # categories = []
-    # for step, batch in enumerate(validation_loader):
-    #     _, latent_vec= models.model(config.latent_dim, batch.shape[1]).apply(
-    #                 final_variables, batch, dropout_rng=dropout_rng, training=False, mutable=False)
-    #     latent_vectors.append(latent_vec)
-    #     categories.append(step)
-    #     del latent_vec
-    # plot_latent_space(latent_vectors, categories)
