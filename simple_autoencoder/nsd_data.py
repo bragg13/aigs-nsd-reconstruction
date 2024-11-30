@@ -66,8 +66,15 @@ def get_train_test_indices(subject=3):
     train_idxs, test_idxs = train_test_split(np.arange(len(subject_images)), test_size=0.1, random_state=42)
     return train_idxs, test_idxs
 
-def normalise(_max, _min, data):
-   return jnp.array((data - _min) / (_max - _min))
+# def normalise(_max, _min, data):
+#    return jnp.array((data - _min) / (_max - _min))
+
+def z_score(data):
+    print(data.min())
+    normalised = jnp.array((data - data.mean()) / data.std())
+    print(normalised.min())
+    return normalised
+
 
 def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all') -> tuple:
     """Get training and test fMRI datasets for a specified subject and ROI class.
@@ -112,18 +119,23 @@ def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all') -> tu
     test_lh_fmri = test_lh_fmri[:, roi_lh]
     test_rh_fmri = test_rh_fmri[:, roi_rh]
 
-    _max = max(train_lh_fmri.max(), train_rh_fmri.max(), test_lh_fmri.max(), test_rh_fmri.max())
-    _min = min(train_lh_fmri.min(), train_rh_fmri.min(), test_lh_fmri.min(), test_rh_fmri.min())
+    # _max = max(train_lh_fmri.max(), train_rh_fmri.max(), test_lh_fmri.max(), test_rh_fmri.max())
+    # _min = min(train_lh_fmri.min(), train_rh_fmri.min(), test_lh_fmri.min(), test_rh_fmri.min())
 
     if hem == 'all':
         train_all_fmri = np.concatenate([train_lh_fmri, train_rh_fmri], axis=1)
         test_all_fmri = np.concatenate([test_lh_fmri, test_rh_fmri], axis=1)
-        return normalise(_max, _min, train_all_fmri), normalise(_max, _min, test_all_fmri)
-        # return train_all_fmri, test_all_fmri
+        return z_score(train_all_fmri), z_score(test_all_fmri)
+        # return normalise(_max, _min, train_all_fmri), normalise(_max, _min, test_all_fmri)
+
     elif hem == 'lh':
-        return normalise(_max, _min, train_lh_fmri), normalise(_max, _min, test_lh_fmri)
+        return z_score(train_lh_fmri), z_score(test_lh_fmri)
+        # return normalise(_max, _min, train_lh_fmri), normalise(_max, _min, test_lh_fmri)
+
     elif hem == 'rh':
-        return normalise(_max, _min, train_rh_fmri), normalise(_max, _min, test_rh_fmri)
+        return z_score(train_rh_fmri), z_score(test_rh_fmri)
+        # return normalise(_max, _min, train_rh_fmri), normalise(_max, _min, test_rh_fmri)
+
     else:
         raise ValueError(f"Invalid hemisphere selection: {hem}. Must be 'all', 'lh', or 'rh'.")
 
@@ -132,36 +144,24 @@ def get_train_test_mnist():
     mnist = tfds.load("mnist", split='train')
     x_data = jnp.array([x["image"] for x in tfds.as_numpy(mnist)]).reshape(-1, 28*28)
     x_data = x_data / 255.0
-    print(x_data.shape)
+    print(f"mnist shape: {x_data.shape}")
     train, test = train_test_split(np.arange(len(x_data)), test_size=0.2, random_state=42)
-    print(len(train), len(test))
+    print(f"train_ds length: {len(train)}, test_ds {len(test)}")
     return x_data[train], x_data[test]
 
-def get_train_test_cifar100():
+def get_train_test_cifar10():
     def rgb2gray(rgb):
         return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
 
     # load the mnist dataset from tfds
-    mnist = tfds.load("cifar10", split='train')
-    x_data = jnp.array([rgb2gray(x["image"]) for x in tfds.as_numpy(mnist)]).reshape(-1, 32*32)
+    cifar = tfds.load("cifar10", split='train')
+    x_data = jnp.array([rgb2gray(x["image"]) for x in tfds.as_numpy(cifar)]).reshape(-1, 32*32)
     x_data = x_data / 255.0
-    print(x_data.shape)
+    print(f"cifar shape: {x_data.shape}")
     train, test = train_test_split(np.arange(len(x_data)), test_size=0.2, random_state=42)
-    print(len(train), len(test))
+    print(f"train_ds length: {len(train)}, test_ds {len(test)}")
     return x_data[train], x_data[test]
 
-def get_train_test_stl():
-    def rgb2gray(rgb):
-        return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
-
-    # load the mnist dataset from tfds
-    mnist = tfds.load("stl10", split='train')
-    x_data = jnp.array([rgb2gray(x["image"]) for x in tfds.as_numpy(mnist)]).reshape(-1, 96*96)
-    x_data = x_data / 255.0
-    print(x_data.shape)
-    train, test = train_test_split(np.arange(len(x_data)), test_size=0.2, random_state=42)
-    print(len(train), len(test))
-    return x_data[train], x_data[test]
 
 def get_batches(fmri, key, batch_size: int):
     """Create batches of fMRI data with the specified batch size.

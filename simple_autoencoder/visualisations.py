@@ -1,8 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
-from logger import log
-
 
 
 def plot_results_epoch(batch, reconstructions, latent_vec, epoch, step):
@@ -95,14 +92,14 @@ def plot_latent_space(latent_vectors, categories):
 def plot_original_reconstruction(originals, reconstructions, dataset, epoch ):
     ds_sizes = {
         'mnist': (28, 28),
-        'cifar100': (32, 32),
+        'cifar10': (32, 32),
         'fmri': (100, 32),
-        'stl': (96, 96)
     }
     fig,axs = plt.subplots(5, 3, figsize=(15,15))
     axs[0, 0].set_title('original')
     axs[0, 1].set_title('reconstructed')
     axs[0, 2].set_title('difference')
+    print(originals.shape)
 
     # plot the first 5 samples of the first batch evaluated
     h, w = ds_sizes[dataset]
@@ -110,8 +107,8 @@ def plot_original_reconstruction(originals, reconstructions, dataset, epoch ):
         print(f"shape of original is {originals[i].shape}")
         original = originals[i][:h*w].reshape(h, w) #[:3600].reshape(36, 100)
         reconstruction = reconstructions[i][:h*w].reshape(h, w)
-        axs[i, 0].imshow(original, cmap='gray')
-        axs[i, 1].imshow(reconstruction, cmap='gray')
+        axs[i, 0].imshow(original, cmap='viridis')
+        axs[i, 1].imshow(reconstruction, cmap='viridis')
         axs[i, 2].imshow(np.floor(original*100)/100 - np.floor(reconstruction*100)/100, cmap='gray')
 
     fig.savefig(f'./results/epoch_{epoch}.png')

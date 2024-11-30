@@ -37,6 +37,7 @@ class Decoder(nn.Module):
 
   fmri_dim: int
   dropout_rate: float = 0.1
+  dataset: str = 'fmri'
 
   @nn.compact
   def __call__(self, z, dropout_rng, training: bool):
@@ -56,7 +57,14 @@ class Decoder(nn.Module):
 
     # final layer
     z = nn.Dense(self.fmri_dim, name=f'fc{len(layers_div)}')(z)
-    z = nn.sigmoid(z)
+
+    if self.dataset == 'fmri':
+        # ??
+        # z = nn.relu(z)
+        pass
+
+    else:
+        z = nn.sigmoid(z)
 
     return z
 
@@ -67,15 +75,21 @@ class AE(nn.Module):
   latent_dim: int #= 3000
   fmri_dim: int # = 3633 #7266
   dropout_rate: float = 0.1
+  dataset: str = 'fmri'
 
   def setup(self):
     self.encoder = Encoder(self.latent_dim, self.fmri_dim, self.dropout_rate)
-    self.decoder = Decoder(self.fmri_dim, self.dropout_rate)
+    self.decoder = Decoder(self.fmri_dim, self.dropout_rate, self.dataset)
 
   def __call__(self, x, dropout_rng, training: bool = True):
     latent_vec = self.encoder(x, dropout_rng=dropout_rng, training=training)
     recon_x = self.decoder(latent_vec, dropout_rng=dropout_rng, training=training)
     return recon_x, latent_vec
 
-def model(latent_dim, fmri_dim, dropout_rate=0.1):
-  return AE(latent_dim=latent_dim, fmri_dim=fmri_dim, dropout_rate=dropout_rate)
+  def encode(self, x, dropout_rng):
+    latent_vec = self.encoder(x, dropout_rng=dropout_rng, training=False)
+    return latent_vec
+
+
+def model(latent_dim, fmri_dim, dataset='fmri', dropout_rate=0.1):
+  return AE(latent_dim=latent_dim, fmri_dim=fmri_dim, dataset=dataset, dropout_rate=dropout_rate)

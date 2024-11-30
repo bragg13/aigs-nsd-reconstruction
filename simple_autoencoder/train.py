@@ -10,17 +10,18 @@ import jax.numpy as jnp
 import optax
 import numpy as np
 from tqdm import tqdm
-from nsd_data import get_train_test_datasets, get_batches, get_train_test_mnist, get_train_test_cifar100, get_train_test_stl
+from nsd_data import get_train_test_datasets, get_batches, get_train_test_mnist, get_train_test_cifar10
 from visualisations import plot_losses, plot_original_reconstruction
 from flax.training import train_state
 from typing import Any
 
+
 class TrainState(train_state.TrainState):
     batch_stats: Any
 
-def create_train_state(key, init_data, latent_dim, fmri_voxels, learning_rate):
+def create_train_state(key, init_data, latent_dim, fmri_voxels, ds, learning_rate):
     """Creates initial `TrainState`."""
-    model_cls = models.model(latent_dim, fmri_voxels)
+    model_cls = models.model(latent_dim, fmri_voxels, dataset=ds)
     variables = model_cls.init(
         {'params': key, 'dropout': key},
         init_data,
@@ -38,7 +39,7 @@ def compute_metrics(recon_x, x, latent_vec ):
     mse_loss = jnp.mean(jnp.square(recon_x - x))
     return {'loss': mse_loss }
 
-def train_step(state, batch, key, latent_dim, l1_coefficient=0.01):
+def train_step(state, batch, key, latent_dim, ds, l1_coefficient=0.01):
     key, dropout_rng = jax.random.split(key)
     """Performs a single training step updating model parameters based on batch data.
 
@@ -53,10 +54,9 @@ def train_step(state, batch, key, latent_dim, l1_coefficient=0.01):
         Tuple containing updated state and training loss for the batch
     """
     def loss_fn(params):
-
         fmri_voxels = batch.shape[1]
         variables = {'params': params, 'batch_stats': state.batch_stats}
-        (recon_x, latent_vec), new_model_state = models.model(latent_dim, fmri_voxels).apply(
+        (recon_x, latent_vec), new_model_state = models.model(latent_dim, fmri_voxels, dataset=ds).apply(
             variables, batch, dropout_rng, training=True, mutable=['batch_stats'], rngs={'dropout': dropout_rng}
         )
         mse_loss = jnp.mean(jnp.square(recon_x - batch))
@@ -70,10 +70,10 @@ def train_step(state, batch, key, latent_dim, l1_coefficient=0.01):
     return state, loss
 
 
-def evaluate_fun(state, loader, key, config, validation_step, num_steps=2):
+def evaluate_fun(state, evaluation_batch, key, config):
     key, dropout_rng = jax.random.split(key)
     """Evaluation function that computes metrics on batches.
-       Evaluates 2 batches by default (during training),
+       Evaluates 1 batch by default (during training),
        while evaluating the entire dataset during testing.
 
     Args:
@@ -87,20 +87,22 @@ def evaluate_fun(state, loader, key, config, validation_step, num_steps=2):
         List of tuples containing (metrics, data, latent vectors) for each evaluation step
         Average of the losses
     """
-    def eval_model(batch ):
+    def eval_model(batch):
         variables = {'params': state.params, 'batch_stats': state.batch_stats}
-        reconstruction, latent_vecs = models.model(config.latent_dim, batch.shape[1]).apply(
+        reconstruction, latent_vecs = models.model(config.latent_dim, batch.shape[1], dataset=config.ds).apply(
             variables, batch, dropout_rng=dropout_rng, training=False, mutable=False)
         metrics = compute_metrics(reconstruction, batch, latent_vecs )
         return metrics, (batch, reconstruction), latent_vecs
 
-    evaluations = []
-    for j in range(num_steps):
-        batch = loader[validation_step:validation_step+config.batch_size, :]
-        # fmri_voxels = batch.shape[1]
-        eval = eval_model(batch )
-        evaluations.append(eval)
-    return evaluations
+    eval = eval_model(evaluation_batch)
+    return eval
+    # evaluations = []
+    # for j in range(num_steps):
+    #     batch = loader[validation_step:validation_step+config.batch_size, :]
+    #     # fmri_voxels = batch.shape[1]
+    #     eval = eval_model(batch )
+    #     evaluations.append(eval)
+    # return evaluations
 
 def train_and_evaluate(config):
     """Train and evaulate pipeline."""
@@ -108,14 +110,13 @@ def train_and_evaluate(config):
     rng, init_key = random.split(rng)
 
     log('Initializing dataset...', 'TRAIN')
+    rate_reconstruction_printing = 1
     if config.ds == 'fmri':
-        train_ds, test_ds = get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='lh')
+        train_ds, validation_ds = get_train_test_datasets(subject=3, roi_class=config.roi_class, hem=config.hem)
     elif config.ds == 'mnist':
         train_ds, validation_ds = get_train_test_mnist()
-    elif config.ds == 'coco':
-        train_ds, validation_ds = get_train_test_stl()
     else:
-        train_ds, validation_ds = get_train_test_cifar100()
+        train_ds, validation_ds = get_train_test_cifar10()
 
     print(f"training ds shape: {train_ds.shape}")
     print(f"test ds shape: {validation_ds.shape}")
@@ -133,7 +134,7 @@ def train_and_evaluate(config):
     init_data = jnp.ones((config.batch_size, fmri_voxels), jnp.float32)
 
     log('Initializing state...', 'TRAIN')
-    state = create_train_state(init_key, init_data, config.latent_dim, fmri_voxels, config.learning_rate)
+    state = create_train_state(init_key, init_data, config.latent_dim, fmri_voxels, config.ds, config.learning_rate)
 
     log(f'Calculating training steps per epochs (train_size: {train_size})...', 'TRAIN')
     steps_per_epoch = train_size // int(config.batch_size)
@@ -146,51 +147,49 @@ def train_and_evaluate(config):
     train_losses = []
     eval_losses = []
 
-    print("Train data stats:", train_ds.min(), train_ds.max(), train_ds.mean())
-    print("Validation data stats:", validation_ds.min(), validation_ds.max(), validation_ds.mean())
+    print("Train data stats:", train_loader.min(), train_loader.max(), train_loader.mean())
+    print("Validation data stats:", validation_loader.min(), validation_loader.max(), validation_loader.mean())
 
     for epoch in range(config.num_epochs):
         # log(f'Epoch {epoch + 1}/{config.num_epochs}', 'TRAIN LOOP')
         rng, epoch_key = jax.random.split(rng)
         validation_step = 0
+        val_loss = 100
 
         # Training loop
         for step in (pbar := tqdm(range(0, len(train_loader), config.batch_size), total=steps_per_epoch)):
             # if step >= steps_per_epoch:
             #     break
 
-            batch = train_ds[step:step+config.batch_size, :]
-            state, loss = train_step(state, batch, epoch_key, config.latent_dim)
+            batch = train_loader[step:step+config.batch_size]
+            state, loss = train_step(state, batch, epoch_key, config.latent_dim, config.ds)
 
-            # save the loss every 5% of steps
-            if step % (steps_per_epoch // 50) == 0:
-                # add training loss
+            if step % (steps_per_epoch // 5) == 0:
                 train_losses.append(loss)
+                validation_batch = validation_loader[validation_step:validation_step+config.batch_size]
+                validation_step =+ config.batch_size
 
-                rng, key = jax.random.split(rng)
-                evaluations = evaluate_fun(
-                    state, validation_loader, epoch_key, config, validation_step, num_steps=1
-                )
-                validation_step += config.batch_size
+                metrics, (evaluated_batches, reconstructions), latent_vecs = evaluate_fun(state, validation_batch, epoch_key, config)
 
-                # add validation losses
-                eval_tmp_losses = [eval[0]['loss'] for eval in evaluations]
-                eval_losses.extend(eval_tmp_losses)
+                eval_losses.append(metrics['loss'])
+                val_loss = metrics['loss']
 
-                # only plotting the first evaluation
-                metrics, (evaluated_batches, reconstructions), latent_vecs = evaluations[0]
-                del evaluations
+            #     # add validation losses
+            #     # eval_tmp_losses = evaluations[0]['loss']
+            #     # eval_losses.append(eval_tmp_losses)
 
-            pbar.set_description(f"epoch {epoch} loss: {str(loss)[:5]}")
+            #     # only plotting the first evaluation
+            #     # metrics, (evaluated_batches, reconstructions), latent_vecs = evaluations[0]
+            #     # del evaluations
+
+            pbar.set_description(f"epoch {epoch} loss: {str(loss)[:5]} val_loss: {str(val_loss)[:5]}")
 
         # once every 10 epochs, plot the original and reconstructed images of the last batch
-        if epoch % 10 == 0:
-            batch_index = 0
-            evaluations = evaluate_fun(
-                state, validation_loader, epoch_key, config, batch_index, num_steps=1
-            )
-            metrics, (evaluated_batches, reconstructions), latent_vecs = evaluations[0]
-            del evaluations
+        if epoch % rate_reconstruction_printing == 0:
+            validation_batch = validation_loader[validation_step:validation_step+config.batch_size]
+            validation_step =+ config.batch_size
+
+            metrics, (evaluated_batches, reconstructions), latent_vecs = evaluate_fun(state, validation_batch, epoch_key, config)
             plot_original_reconstruction(evaluated_batches, reconstructions, config.ds, epoch)
 
         key1, key2 = random.split(rng)
