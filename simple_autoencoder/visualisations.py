@@ -40,9 +40,12 @@ def plot_results_before_after_training():
     pass
 
 def plot_losses(train_losses, eval_losses, steps_per_epoch):
+    num_steps = len(train_losses)
+
     plt.figure(figsize=(10,10))
     plt.title('Train Losses over steps')
     plt.plot(train_losses, label='train', color='blue')
+    # plt.plot(np.linspace(0,num_steps, steps_per_epoch//5), eval_losses, label='eval', color='orange')
     plt.plot(eval_losses, label='eval', color='orange')
     plt.xlabel('steps')
 

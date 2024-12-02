@@ -17,6 +17,9 @@ import argparse
 import train
 
 def main(argv):
+    # hide memory from tensorflow or it miht conflict with jax
+    tf.config.experimental.set_visible_devices([], "GPU")
+
     parser = argparse.ArgumentParser("SAE model")
     parser.add_argument("--learning_rate", dest='config.learning_rate', type=float, default=0.0001)
     parser.add_argument("--latent_dim", dest='config.latent_dim', type=int, default=30)
@@ -25,9 +28,9 @@ def main(argv):
     parser.add_argument("--roi_class", dest='config.roi_class', default='floc-bodies') # floc-bodies, ...
     parser.add_argument("--hem", dest='config.hem', default='lh') # lh, rh, all
     parser.add_argument("--ds", dest='config.ds', default='fmri') # mnist, cifar10, fmri
+    parser.add_argument("--sparsity", dest='config.sparsity', type=float, default=0.8)
     user_provided_args, default_args = OmegaConf.from_argparse(parser)
 
-    log(user_provided_args, "MAIN")
     train.train_and_evaluate(user_provided_args.config)
 
 

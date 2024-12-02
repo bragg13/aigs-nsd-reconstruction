@@ -1,46 +1,59 @@
 """Training and evaluation logic."""
-import matplotlib.pyplot as plt
-from flax import linen as nn
-from flax import nnx
 import models
 from logger import log
 import jax
 from jax import random
 import jax.numpy as jnp
 import optax
-import numpy as np
 from tqdm import tqdm
 from nsd_data import get_train_test_datasets, get_batches, get_train_test_mnist, get_train_test_cifar10
 from visualisations import plot_losses, plot_original_reconstruction
 from flax.training import train_state
 from typing import Any
-
+import jaxpruner
+import ml_collections
 
 class TrainState(train_state.TrainState):
     batch_stats: Any
 
-def create_train_state(key, init_data, latent_dim, fmri_voxels, ds, learning_rate):
+
+def create_train_state(key, init_data, config, fmri_voxels):
     """Creates initial `TrainState`."""
-    model_cls = models.model(latent_dim, fmri_voxels, dataset=ds)
-    variables = model_cls.init(
+    model = models.model(config.latent_dim, fmri_voxels, dataset=config.ds)
+    variables = model.init(
         {'params': key, 'dropout': key},
         init_data,
         dropout_rng=key,
         training=True
     )
+
+    # introducing sparsity
+    # tx = optax.adamw(learning_rate)
+    sparsity_config = ml_collections.ConfigDict()
+    sparsity_config.algorithm = 'static_sparse'
+    # sparsity_config.sparsity = config.sparsity
+    # sparsity_config.update_freq = 10
+    # sparsity_config.update_end_step = 1000
+    # sparsity_config.update_start_step = 1
+    sparsity_config.sparsity = 0.95
+    sparsity_config.dist_type = 'erk'
+
+    sparsity_updater = jaxpruner.create_updater_from_config(sparsity_config)
+    tx = optax.adamw(config.learning_rate)
+    tx = sparsity_updater.wrap_optax(tx)
+
     return TrainState.create(
-        apply_fn=model_cls.apply,
+        apply_fn=model.apply,
         params=variables['params'],
         batch_stats=variables['batch_stats'],
-        tx=optax.adamw(learning_rate)
-    )
+        tx=tx
+    ), sparsity_updater
 
 def compute_metrics(recon_x, x, latent_vec ):
     mse_loss = jnp.mean(jnp.square(recon_x - x))
     return {'loss': mse_loss }
 
-def train_step(state, batch, key, latent_dim, ds, l1_coefficient=0.01):
-    key, dropout_rng = jax.random.split(key)
+def train_step(state, batch, key, latent_dim, ds, sparsity_update):
     """Performs a single training step updating model parameters based on batch data.
 
     Args:
@@ -53,6 +66,7 @@ def train_step(state, batch, key, latent_dim, ds, l1_coefficient=0.01):
     Returns:
         Tuple containing updated state and training loss for the batch
     """
+    key, dropout_rng = jax.random.split(key)
     def loss_fn(params):
         fmri_voxels = batch.shape[1]
         variables = {'params': params, 'batch_stats': state.batch_stats}
@@ -132,7 +146,7 @@ def train_and_evaluate(config):
     init_data = jnp.ones((config.batch_size, fmri_voxels), jnp.float32)
 
     log('Initializing state...', 'TRAIN')
-    state = create_train_state(init_key, init_data, config.latent_dim, fmri_voxels, config.ds, config.learning_rate)
+    state, sparsity_updater = create_train_state(init_key, init_data, config, fmri_voxels)
 
     log(f'Calculating training steps per epochs (train_size: {train_size})...', 'TRAIN')
     steps_per_epoch = train_size // int(config.batch_size)
@@ -153,14 +167,27 @@ def train_and_evaluate(config):
         validation_step = 0
         val_loss = 100
 
+        # im reshuffling also the first time, which is useless
+        # but I think the code is cleaner
+        key1, key2 = random.split(rng)
+        train_loader = get_batches(train_ds, key1, config.batch_size)
+        validation_loader = get_batches(validation_ds, key2, config.batch_size)
+
+        # pre_op = jax.jit(sparsity_updater.pre_forward_update)
+        post_op = jax.jit(sparsity_updater.post_gradient_update)
+
         # Training loop
         for step in (pbar := tqdm(range(0, len(train_loader), config.batch_size), total=steps_per_epoch)):
 
             batch = train_loader[step:step+config.batch_size]
-            state, loss = train_step(state, batch, epoch_key, config.latent_dim, config.ds)
+            state, train_loss = train_step(state, batch, epoch_key, config.latent_dim, config.ds, sparsity_updater)
 
+            # implemening sparsity
+            post_params = post_op(state.params, state.opt_state)
+            state = state.replace(params=post_params)
+
+            train_losses.append(train_loss)
             if step % (steps_per_epoch // 5) == 0:
-                train_losses.append(loss)
                 validation_batch = validation_loader[validation_step:validation_step+config.batch_size]
                 validation_step =+ config.batch_size
 
@@ -168,16 +195,10 @@ def train_and_evaluate(config):
 
                 eval_losses.append(metrics['loss'])
                 val_loss = metrics['loss']
+                print(jaxpruner.summarize_sparsity(
+                            state.params, only_total_sparsity=True))
 
-            #     # add validation losses
-            #     # eval_tmp_losses = evaluations[0]['loss']
-            #     # eval_losses.append(eval_tmp_losses)
-
-            #     # only plotting the first evaluation
-            #     # metrics, (evaluated_batches, reconstructions), latent_vecs = evaluations[0]
-            #     # del evaluations
-
-            pbar.set_description(f"epoch {epoch} loss: {str(loss)[:5]} val_loss: {str(val_loss)[:5]}")
+            pbar.set_description(f"epoch {epoch} loss: {str(train_loss)[:5]} val_loss: {str(val_loss)[:5]}")
 
         # once every 10 epochs, plot the original and reconstructed images of the last batch
         if epoch % rate_reconstruction_printing == 0:
@@ -187,8 +208,5 @@ def train_and_evaluate(config):
             metrics, (evaluated_batches, reconstructions), latent_vecs = evaluate_fun(state, validation_batch, epoch_key, config)
             plot_original_reconstruction(evaluated_batches, reconstructions, config.ds, epoch)
 
-        key1, key2 = random.split(rng)
-        train_loader = get_batches(train_ds, key1, config.batch_size)
-        validation_loader = get_batches(validation_ds, key2, config.batch_size)
 
     plot_losses(train_losses, eval_losses, steps_per_epoch)
