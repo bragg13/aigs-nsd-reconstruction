@@ -30,6 +30,7 @@ class Encoder(nn.Module):
 
     # final layer
     x = nn.Dense(self.latent_dim, name=f'fc{len(layers_div)}')(x)
+    x = nn.relu(x)
     return x
 
 class Decoder(nn.Module):
