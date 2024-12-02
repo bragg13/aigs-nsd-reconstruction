@@ -41,12 +41,13 @@ def plot_results_before_after_training():
 
 def plot_losses(train_losses, eval_losses, steps_per_epoch):
     num_steps = len(train_losses)
+    indices_eval = list(range(0, num_steps, num_steps//len(eval_losses)))
+    _min = min(len(indices_eval), len(eval_losses))
 
     plt.figure(figsize=(10,10))
     plt.title('Train Losses over steps')
     plt.plot(train_losses, label='train', color='blue')
-    # plt.plot(np.linspace(0,num_steps, steps_per_epoch//5), eval_losses, label='eval', color='orange')
-    plt.plot(eval_losses, label='eval', color='orange')
+    plt.plot(indices_eval[:_min], eval_losses[:_min], label='eval', color='orange')
     plt.xlabel('steps')
 
     # add xticks for epochs

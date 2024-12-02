@@ -35,7 +35,7 @@ def create_train_state(key, init_data, config, fmri_voxels):
     # sparsity_config.update_freq = 10
     # sparsity_config.update_end_step = 1000
     # sparsity_config.update_start_step = 1
-    sparsity_config.sparsity = 0.95
+    sparsity_config.sparsity = config.sparsity
     sparsity_config.dist_type = 'erk'
 
     sparsity_updater = jaxpruner.create_updater_from_config(sparsity_config)

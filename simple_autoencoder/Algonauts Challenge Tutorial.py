@@ -234,3 +234,18 @@ for i in using_roi:
 plt.show()
 
 # %%
+import matplotlib.pyplot as plt
+a = [5, 6, 7, 2, 5, 9, 1, 3, 5, 7]
+b = [5, 6, 3, 5, 7]
+
+# Create an array of indices for b that correspond to every second point in a
+indices_b = list(range(0, len(b) * 2, 2))
+
+# Plot a
+plt.plot(a, label='a')
+
+# Plot b at the specified indices
+plt.plot(indices_b, b, label='b')
+
+plt.legend()
+plt.show()
