@@ -34,7 +34,7 @@ def main(argv):
     user_provided_args, default_args = OmegaConf.from_argparse(parser)
 
     # create the results folder
-    results_folder = f'results/subj{user_provided_args.config.subject}_{user_provided_args.config.ds}_latent{user_provided_args.config.latent_dim}_sparsity{user_provided_args.config.sparsity}_bs{user_provided_args.config.batch_size}_lOne{user_provided_args.config.l1}'
+    results_folder = f'results/subj{user_provided_args.config.subject}/{user_provided_args.config.ds}_latent{user_provided_args.config.latent_dim}_sparsity{user_provided_args.config.sparsity}_bs{user_provided_args.config.batch_size}_lOne{user_provided_args.config.l1}'
     os.makedirs(results_folder, exist_ok=True)
     user_provided_args.config['results_folder'] = results_folder
 

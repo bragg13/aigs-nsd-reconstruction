@@ -59,12 +59,7 @@ class Decoder(nn.Module):
     # final layer
     z = nn.Dense(self.fmri_dim, name=f'fc{len(layers_div)}')(z)
 
-    if self.dataset == 'fmri':
-        # ??
-        # z = nn.relu(z)
-        pass
-
-    else:
+    if self.dataset != 'fmri':
         z = nn.sigmoid(z)
 
     return z

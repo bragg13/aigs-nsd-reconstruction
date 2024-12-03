@@ -85,31 +85,40 @@ def save_latent_vectors(latent_vectors, results_folder):
 def main(argv):
     parser = argparse.ArgumentParser("latent spaces in SAE analysis")
     parser.add_argument("--config", dest='config.model_config', default='')
-    parser.add_argument("--samples", dest='config.samples', type=int, default=10)
+    parser.add_argument("--samples", dest='config.samples', type=int, default=10) # -1 to get all
+    parser.add_argument("--subject", dest='config.subject', type=int, default=3) # -1 to get all
     user_provided_args, default_args = OmegaConf.from_argparse(parser)
+    subjects = []
 
-    # load the model config
-    model_config = OmegaConf.load(f"{PROJECT_DIR}/results/{user_provided_args.config.model_config}")
+    # iterate over all subjects or only one
+    if user_provided_args.config.subject == -1:
+        subjects = [1, 2, 3, 4, 5, 6, 7, 8]
+    else:
+        subjects.append(user_provided_args.config.subject)
 
-    # load the checkpoint folder
-    ckpt_folder = pathlib.Path(f"{PROJECT_DIR}/{user_provided_args.config.results_folder}")
+    for subject in subjects:
+        # load the model config
+        model_config = OmegaConf.load(f"{PROJECT_DIR}/results/{user_provided_args.config.model_config}")
 
-    # load test data
-    shared_images = None
+        # load the checkpoint folder
+        ckpt_folder = pathlib.Path(f"{PROJECT_DIR}/{user_provided_args.config.results_folder}")
 
-    # restore the models
-    # model = load_model_checkpoint(shared_images.shape, model_config, ckpt_folder)
+        # load test data
+        shared_images = None
 
-    # perform some inference
-    # reconstructions, latent_vectors = inference(model, shared_images, model_config)
+        # restore the models
+        model = load_model_checkpoint(shared_images.shape, model_config, ckpt_folder)
 
-    # visualize the results
-    # plot_original_reconstruction(evaluated_batches, reconstructions, config, epoch)
-    # visualize_latent_activations(latent_vecs, evaluated_batches, config.results_folder,epoch)
-    # plot_latent_heatmap(latent_vecs, evaluated_batches, config.results_folder,epoch)
+        # perform some inference
+        # reconstructions, latent_vectors = inference(model, shared_images, model_config)
 
-    # save the latent vectors to disk
-    # save_latent_vectors(latent_vectors, model_config.results_folder)
+        # visualize the results
+        # plot_original_reconstruction(evaluated_batches, reconstructions, config, epoch)
+        # visualize_latent_activations(latent_vecs, evaluated_batches, config.results_folder,epoch)
+        # plot_latent_heatmap(latent_vecs, evaluated_batches, config.results_folder,epoch)
+
+        # save the latent vectors to disk
+        # save_latent_vectors(latent_vectors, model_config.results_folder)
 
 if __name__ == '__main__':
     argv = sys.argv
