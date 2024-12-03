@@ -12,6 +12,7 @@ from flax.training import train_state
 from typing import Any
 import jaxpruner
 import ml_collections
+from flax import nnx
 import orbax.checkpoint as ocp
 
 class TrainState(train_state.TrainState):
@@ -157,7 +158,10 @@ def train_and_evaluate(config):
 
     print("Train data stats:", train_loader.min(), train_loader.max(), train_loader.mean())
     print("Validation data stats:", validation_loader.min(), validation_loader.max(), validation_loader.mean())
+
+    # utils for visaulisation and checkpointing
     visualizer = LatentVisualizer(config.results_folder)
+    checkpointer = ocp.StandardCheckpointer()
 
     for epoch in range(config.num_epochs):
         rng, epoch_key = jax.random.split(rng)
@@ -169,11 +173,7 @@ def train_and_evaluate(config):
         key1, key2 = random.split(rng)
         train_loader = get_batches(train_ds, key1, config.batch_size)
         validation_loader = get_batches(validation_ds, key2, config.batch_size)
-        # _, state = nnx.split(model)
-        # nnx.display(state)
 
-        # checkpointer = ocp.StandardCheckpointer()
-        # checkpointer.save(ckpt_dir / 'state', state)
         # pre_op = jax.jit(sparsity_updater.pre_forward_update)
         post_op = jax.jit(sparsity_updater.post_gradient_update)
 
@@ -190,6 +190,7 @@ def train_and_evaluate(config):
 
             train_mse_losses.append(mse_loss)
             train_spa_losses.append(spa_loss)
+
             if step % (steps_per_epoch // 5) == 0:
                 validation_batch = validation_loader[validation_step:validation_step+config.batch_size]
                 validation_step =+ config.batch_size
@@ -210,10 +211,13 @@ def train_and_evaluate(config):
             validation_step =+ config.batch_size
             metrics, (evaluated_batches, reconstructions), latent_vecs = evaluate_fun(state, validation_batch, epoch_key, config)
 
-            plot_original_reconstruction(evaluated_batches, reconstructions, config.results_folder, epoch)
+            plot_original_reconstruction(evaluated_batches, reconstructions, config, epoch)
             visualize_latent_activations(latent_vecs, evaluated_batches, config.results_folder,epoch)
             plot_latent_heatmap(latent_vecs, evaluated_batches, config.results_folder,epoch)
 
 
+    # save model to disk TODO: use os for this!!
+    ckpt_folder = ocp.test_utils.erase_and_create_empty(f'/Users/andrea/Desktop/aigs/simple_autoencoder/{config.results_folder}')
+    checkpointer.save(ckpt_folder / 'state', state)
     plot_losses(train_mse_losses, train_spa_losses, config.results_folder, eval_losses, steps_per_epoch)
     visualizer.plot_training_history()

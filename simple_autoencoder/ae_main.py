@@ -15,6 +15,8 @@ import tensorflow as tf
 from omegacli import OmegaConf, generate_config_template, parse_config
 import argparse
 import train
+import os
+import orbax.checkpoint as ocp
 
 def main(argv):
     # hide memory from tensorflow or it miht conflict with jax
@@ -32,7 +34,12 @@ def main(argv):
     parser.add_argument("--l1", dest='config.l1', type=float, default=0.1)
 
     user_provided_args, default_args = OmegaConf.from_argparse(parser)
-    user_provided_args['results_folder'] = f'results/{user_provided_args.ds}_latent{user_provided_args.latent_dim}_sparsity{user_provided_args.sparsity}_bs{user_provided_args.batch_size}_l1{user_provided_args.l1}'
+
+    # create the results folder
+    results_folder = f'results/{user_provided_args.config.ds}_latent{user_provided_args.config.latent_dim}_sparsity{user_provided_args.config.sparsity}_bs{user_provided_args.config.batch_size}_l1{user_provided_args.config.l1}'
+    os.makedirs(results_folder, exist_ok=True)
+
+    user_provided_args.config['results_folder'] = results_folder
 
     train.train_and_evaluate(user_provided_args.config)
 

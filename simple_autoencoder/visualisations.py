@@ -25,7 +25,7 @@ def plot_losses(train_losses_mse, train_losses_spa, results_folder, eval_losses,
     plt.close()
 
 
-def plot_original_reconstruction(originals, reconstructions, results_folder, epoch ):
+def plot_original_reconstruction(originals, reconstructions, config, epoch ):
     ds_sizes = {
         'mnist': (28, 28),
         'cifar10': (32, 32),
@@ -38,7 +38,7 @@ def plot_original_reconstruction(originals, reconstructions, results_folder, epo
     # print(originals.shape)
 
     # plot the first 5 samples of the first batch evaluated
-    h, w = ds_sizes[dataset]
+    h, w = ds_sizes[config.ds]
     for i in range(5):
         original = originals[i][:h*w].reshape(h, w) #[:3600].reshape(36, 100)
         reconstruction = reconstructions[i][:h*w].reshape(h, w)
@@ -46,7 +46,7 @@ def plot_original_reconstruction(originals, reconstructions, results_folder, epo
         axs[i, 1].imshow(reconstruction, cmap='viridis')
         axs[i, 2].imshow(np.floor(original*100)/100 - np.floor(reconstruction*100)/100, cmap='gray')
 
-    fig.savefig(f'{results_folder}/reconstruction_{epoch}.png')
+    fig.savefig(f'{config.results_folder}/reconstruction_{epoch}.png')
 
 def plot_original_reconstruction_fmri(originals, reconstructions, results_folder, epoch):
     # TODO: implement to show the brain surface with the original and reconstructed fmri data
