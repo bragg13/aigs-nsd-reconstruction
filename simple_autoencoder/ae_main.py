@@ -8,15 +8,12 @@ that can be easily tested and imported in Colab.
 # from absl import flags
 # from absl import logging
 import sys
-from clu import platform
-import jax
-from logger import log
 import tensorflow as tf
-from omegacli import OmegaConf, generate_config_template, parse_config
+from omegacli import OmegaConf
 import argparse
 import train
 import os
-import orbax.checkpoint as ocp
+PROJECT_DIR = '/Users/andrea/Desktop/aigs/simple_autoencoder/'
 
 def main(argv):
     # hide memory from tensorflow or it miht conflict with jax
@@ -32,14 +29,17 @@ def main(argv):
     parser.add_argument("--ds", dest='config.ds', default='fmri') # mnist, cifar10, fmri
     parser.add_argument("--sparsity", dest='config.sparsity', type=float, default=0.8)
     parser.add_argument("--l1", dest='config.l1', type=float, default=0.1)
+    parser.add_argument("--subject", dest='config.subject', type=int, default=3)
 
     user_provided_args, default_args = OmegaConf.from_argparse(parser)
 
     # create the results folder
-    results_folder = f'results/{user_provided_args.config.ds}_latent{user_provided_args.config.latent_dim}_sparsity{user_provided_args.config.sparsity}_bs{user_provided_args.config.batch_size}_l1{user_provided_args.config.l1}'
+    results_folder = f'results/subj{user_provided_args.config.subject}_{user_provided_args.config.ds}_latent{user_provided_args.config.latent_dim}_sparsity{user_provided_args.config.sparsity}_bs{user_provided_args.config.batch_size}_lOne{user_provided_args.config.l1}'
     os.makedirs(results_folder, exist_ok=True)
-
     user_provided_args.config['results_folder'] = results_folder
+
+    # write the config to the results folder
+    OmegaConf.save(user_provided_args.config, os.path.join(results_folder, 'config.yaml'))
 
     train.train_and_evaluate(user_provided_args.config)
 

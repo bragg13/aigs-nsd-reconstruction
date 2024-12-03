@@ -12,8 +12,8 @@ from flax.training import train_state
 from typing import Any
 import jaxpruner
 import ml_collections
-from flax import nnx
 import orbax.checkpoint as ocp
+from ae_main import PROJECT_DIR
 
 class TrainState(train_state.TrainState):
     batch_stats: Any
@@ -121,7 +121,8 @@ def train_and_evaluate(config):
     log('Initializing dataset...', 'TRAIN')
     rate_reconstruction_printing = 10
     if config.ds == 'fmri':
-        train_ds, validation_ds = get_train_test_datasets(subject=3, roi_class=config.roi_class, hem=config.hem)
+        train_ds, validation_ds = get_train_test_datasets(subject=config.subject, roi_class=config.roi_class, hem=config.hem)
+
     elif config.ds == 'mnist':
         train_ds, validation_ds = get_train_test_mnist()
     else:
@@ -137,7 +138,6 @@ def train_and_evaluate(config):
     fmri_voxels = train_ds.shape[1]
 
     log('Initializing model...', 'TRAIN')
-    # va bene che siano uni o random gaussian noise?
     init_data = jnp.ones((config.batch_size, fmri_voxels), jnp.float32)
 
     log('Initializing state...', 'TRAIN')
@@ -166,10 +166,9 @@ def train_and_evaluate(config):
     for epoch in range(config.num_epochs):
         rng, epoch_key = jax.random.split(rng)
         validation_step = 0
-        val_loss = 100
+        val_loss = 100 # only used for initial tqdm printing
 
-        # im reshuffling also the first time, which is useless
-        # but I think the code is cleaner
+        # im reshuffling also the first time, which is useless but I think the code is cleaner
         key1, key2 = random.split(rng)
         train_loader = get_batches(train_ds, key1, config.batch_size)
         validation_loader = get_batches(validation_ds, key2, config.batch_size)
@@ -196,6 +195,7 @@ def train_and_evaluate(config):
                 validation_step =+ config.batch_size
 
                 metrics, (evaluated_batches, reconstructions), latent_vecs = evaluate_fun(state, validation_batch, epoch_key, config)
+
                 visualizer.update(latent_vecs)
 
                 eval_losses.append(metrics['mse_loss'])
@@ -217,7 +217,7 @@ def train_and_evaluate(config):
 
 
     # save model to disk TODO: use os for this!!
-    ckpt_folder = ocp.test_utils.erase_and_create_empty(f'/Users/andrea/Desktop/aigs/simple_autoencoder/{config.results_folder}')
+    ckpt_folder = ocp.test_utils.erase_and_create_empty(f'{PROJECT_DIR}/{config.results_folder}')
     checkpointer.save(ckpt_folder / 'state', state)
     plot_losses(train_mse_losses, train_spa_losses, config.results_folder, eval_losses, steps_per_epoch)
     visualizer.plot_training_history()

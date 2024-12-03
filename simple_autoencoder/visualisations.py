@@ -2,9 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from typing import Tuple, List
+import jax.numpy as jnp
 
 # training related
-def plot_losses(train_losses_mse, train_losses_spa, results_folder, eval_losses, steps_per_epoch):
+def plot_losses(train_losses_mse: List, train_losses_spa: List, results_folder: str, eval_losses: List, steps_per_epoch: int)-> None:
     num_steps = len(train_losses_mse)
     indices_eval = list(range(0, num_steps, num_steps//len(eval_losses)))
     _min = min(len(indices_eval), len(eval_losses))
@@ -25,7 +26,7 @@ def plot_losses(train_losses_mse, train_losses_spa, results_folder, eval_losses,
     plt.close()
 
 
-def plot_original_reconstruction(originals, reconstructions, config, epoch ):
+def plot_original_reconstruction(originals: jnp.ndarray, reconstructions: jnp.ndarray, config, epoch: int )-> None:
     ds_sizes = {
         'mnist': (28, 28),
         'cifar10': (32, 32),
@@ -55,8 +56,8 @@ def plot_original_reconstruction_fmri(originals, reconstructions, results_folder
 
 
 # latent vector related
-def visualize_latent_activations(latent_vecs,
-                               images: np.ndarray,
+def visualize_latent_activations(latent_vecs: jnp.ndarray,
+                               images: jnp.ndarray,
                                results_folder: str,
                                epoch: int,
                                num_examples: int = 5) -> None:
@@ -89,8 +90,8 @@ def visualize_latent_activations(latent_vecs,
     plt.tight_layout()
     plt.savefig(f'{results_folder}/latent_activations_{epoch}.png')
 
-def plot_latent_heatmap(latent_vecs,
-                       images: np.ndarray,
+def plot_latent_heatmap(latent_vecs: jnp.ndarray,
+                       images: jnp.ndarray,
                        results_folder: str,
                        epoch: int,
                        num_examples: int = 10) -> None:
