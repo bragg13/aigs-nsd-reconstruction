@@ -29,7 +29,10 @@ def main(argv):
     parser.add_argument("--hem", dest='config.hem', default='lh') # lh, rh, all
     parser.add_argument("--ds", dest='config.ds', default='fmri') # mnist, cifar10, fmri
     parser.add_argument("--sparsity", dest='config.sparsity', type=float, default=0.8)
+    parser.add_argument("--l1", dest='config.l1', type=float, default=0.1)
+
     user_provided_args, default_args = OmegaConf.from_argparse(parser)
+    user_provided_args['results_folder'] = f'results/{user_provided_args.ds}_latent{user_provided_args.latent_dim}_sparsity{user_provided_args.sparsity}_bs{user_provided_args.batch_size}_l1{user_provided_args.l1}'
 
     train.train_and_evaluate(user_provided_args.config)
 

@@ -4,7 +4,7 @@ import seaborn as sns
 from typing import Tuple, List
 
 # training related
-def plot_losses(train_losses_mse, train_losses_spa, eval_losses, steps_per_epoch):
+def plot_losses(train_losses_mse, train_losses_spa, results_folder, eval_losses, steps_per_epoch):
     num_steps = len(train_losses_mse)
     indices_eval = list(range(0, num_steps, num_steps//len(eval_losses)))
     _min = min(len(indices_eval), len(eval_losses))
@@ -21,11 +21,11 @@ def plot_losses(train_losses_mse, train_losses_spa, eval_losses, steps_per_epoch
     plt.ylabel('loss')
     plt.grid()
     plt.legend()
-    plt.savefig('results/losses.png')
+    plt.savefig(f'{results_folder}/losses.png')
     plt.close()
 
 
-def plot_original_reconstruction(originals, reconstructions, dataset, epoch ):
+def plot_original_reconstruction(originals, reconstructions, results_folder, epoch ):
     ds_sizes = {
         'mnist': (28, 28),
         'cifar10': (32, 32),
@@ -46,18 +46,19 @@ def plot_original_reconstruction(originals, reconstructions, dataset, epoch ):
         axs[i, 1].imshow(reconstruction, cmap='viridis')
         axs[i, 2].imshow(np.floor(original*100)/100 - np.floor(reconstruction*100)/100, cmap='gray')
 
-    fig.savefig(f'./results/epoch_{epoch}.png')
+    fig.savefig(f'{results_folder}/reconstruction_{epoch}.png')
 
-def plot_original_reconstruction_fmri(originals, reconstructions, epoch):
+def plot_original_reconstruction_fmri(originals, reconstructions, results_folder, epoch):
     # TODO: implement to show the brain surface with the original and reconstructed fmri data
+    # fig.savefig(f'/{results_folder}/reconstruction_{epoch}.png')
     pass
 
 
 # latent vector related
-
 def visualize_latent_activations(latent_vecs,
                                images: np.ndarray,
-                                epoch: int,
+                               results_folder: str,
+                               epoch: int,
                                num_examples: int = 5) -> None:
     """
     Creates a grid showing images and their corresponding latent activations.
@@ -68,7 +69,7 @@ def visualize_latent_activations(latent_vecs,
         num_examples: Number of examples to show
     """
     fig, axes = plt.subplots(2, num_examples, figsize=(15, 4))
-    plt.suptitle('Images and their Latent Representations')
+    plt.suptitle('Samples with their Latent Representations')
 
     for i in range(num_examples):
         # Show original image
@@ -86,10 +87,11 @@ def visualize_latent_activations(latent_vecs,
         axes[1, i].set_title(f'Latent Vector {i+1}')
 
     plt.tight_layout()
-    plt.savefig(f'results/latent_activations_{epoch}.png')
+    plt.savefig(f'{results_folder}/latent_activations_{epoch}.png')
 
 def plot_latent_heatmap(latent_vecs,
                        images: np.ndarray,
+                       results_folder: str,
                        epoch: int,
                        num_examples: int = 10) -> None:
     """
@@ -105,10 +107,10 @@ def plot_latent_heatmap(latent_vecs,
                 cmap='RdBu_r',
                 center=0,
                 cbar_kws={'label': 'Activation'})
-    plt.xlabel('Example Number')
+    plt.xlabel('Sample')
     plt.ylabel('Latent Dimension')
     plt.title('Latent Space Activation Patterns')
-    plt.savefig(f'results/latent_heatmap{epoch}.png')
+    plt.savefig(f'{results_folder}/latent_heatmap_{epoch}.png')
 
 def track_latent_statistics(latent_vecs) -> Tuple[List[float], List[float]]:
     """
@@ -128,9 +130,10 @@ def track_latent_statistics(latent_vecs) -> Tuple[List[float], List[float]]:
     return sparsity, mean_activation
 
 class LatentVisualizer:
-    def __init__(self):
+    def __init__(self, results_folder):
         self.sparsity_history = []
         self.activation_history = []
+        self.results_folder = results_folder
 
     def update(self, latent_vecs) -> None:
         """Update tracking statistics during training."""
@@ -153,4 +156,4 @@ class LatentVisualizer:
         ax2.set_xlabel('Training Step')
 
         plt.tight_layout()
-        plt.savefig('results/latent_statistics.png')
+        plt.savefig(f'{self.results_folder}/latent_statistics.png')

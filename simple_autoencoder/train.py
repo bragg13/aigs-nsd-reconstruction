@@ -124,7 +124,7 @@ def train_and_evaluate(config):
     rng, init_key = random.split(rng)
 
     log('Initializing dataset...', 'TRAIN')
-    rate_reconstruction_printing = 1
+    rate_reconstruction_printing = 10
     if config.ds == 'fmri':
         train_ds, validation_ds = get_train_test_datasets(subject=3, roi_class=config.roi_class, hem=config.hem)
     elif config.ds == 'mnist':
@@ -163,7 +163,7 @@ def train_and_evaluate(config):
 
     print("Train data stats:", train_loader.min(), train_loader.max(), train_loader.mean())
     print("Validation data stats:", validation_loader.min(), validation_loader.max(), validation_loader.mean())
-    visualizer = LatentVisualizer()
+    visualizer = LatentVisualizer(config.results_folder)
 
     for epoch in range(config.num_epochs):
         rng, epoch_key = jax.random.split(rng)
@@ -212,10 +212,10 @@ def train_and_evaluate(config):
             validation_step =+ config.batch_size
             metrics, (evaluated_batches, reconstructions), latent_vecs = evaluate_fun(state, validation_batch, epoch_key, config)
 
-            plot_original_reconstruction(evaluated_batches, reconstructions, config.ds, epoch)
-            visualize_latent_activations(latent_vecs, evaluated_batches, epoch)
-            plot_latent_heatmap(latent_vecs, evaluated_batches, epoch)
+            plot_original_reconstruction(evaluated_batches, reconstructions, config.results_folder, epoch)
+            visualize_latent_activations(latent_vecs, evaluated_batches, config.results_folder,epoch)
+            plot_latent_heatmap(latent_vecs, evaluated_batches, config.results_folder,epoch)
 
 
-
-    plot_losses(train_mse_losses, train_spa_losses, eval_losses, steps_per_epoch)
+    plot_losses(train_mse_losses, train_spa_losses, config.results_folder, eval_losses, steps_per_epoch)
+    visualizer.plot_training_history()
