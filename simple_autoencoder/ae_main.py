@@ -39,7 +39,12 @@ def main(argv):
     user_provided_args.config['results_folder'] = results_folder
 
     # write the config to the results folder
-    OmegaConf.save(user_provided_args.config, os.path.join(results_folder, 'config.yaml'))
+    print('lol')
+    with open(f"{results_folder}/config", 'w') as f:
+        print('ao')
+        for key, value in user_provided_args.config.items():
+            print(key, value)
+            f.write(f'{key}:{value}\n')
 
     train.train_and_evaluate(user_provided_args.config)
 

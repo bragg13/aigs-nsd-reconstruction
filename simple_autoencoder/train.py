@@ -217,7 +217,7 @@ def train_and_evaluate(config):
 
 
     # save model to disk TODO: use os for this!!
-    ckpt_folder = ocp.test_utils.erase_and_create_empty(f'{PROJECT_DIR}/{config.results_folder}')
-    checkpointer.save(ckpt_folder / 'state', state)
+    ckpt_folder = ocp.test_utils.erase_and_create_empty(f'{PROJECT_DIR}/{config.results_folder}/checkpoints')
+    checkpointer.save(ckpt_folder / 'final', state)
     plot_losses(train_mse_losses, train_spa_losses, config.results_folder, eval_losses, steps_per_epoch)
     visualizer.plot_training_history()

@@ -1,5 +1,5 @@
 import sys
-from omegacli import OmegaConf, generate_config_template, parse_config
+from omegacli import OmegaConf
 import argparse
 import orbax.checkpoint as ocp
 from flax.training import train_state
@@ -10,8 +10,11 @@ import models
 import ml_collections
 import optax
 import jaxpruner
-from ae_main import PROJECT_DIR
 import pathlib
+from logger import log
+
+PROJECT_DIR = '/Users/andrea/Desktop/aigs/simple_autoencoder/' # repetition
+
 
 class TrainState(train_state.TrainState):
     batch_stats: Any
@@ -28,7 +31,7 @@ def load_model_checkpoint(input_shape: Tuple, config, checkpoint_path):
     init_data = jnp.ones(input_shape, jnp.float32)
 
     # initialise the model as in train.py
-    model = models.model(config.latent_dim, fmri_voxels, dataset=config.ds)
+    model = models.model(config[ 'latent_dim' ], fmri_voxels, dataset=config[ 'ds' ])
 
     variables = model.init(
         {'params': init_key, 'dropout': dropout_key},
@@ -40,11 +43,11 @@ def load_model_checkpoint(input_shape: Tuple, config, checkpoint_path):
     # configure sparsity as in training TODO: load this somewhere or idk
     sparsity_config = ml_collections.ConfigDict()
     sparsity_config.algorithm = 'static_sparse'
-    sparsity_config.sparsity = config.sparsity
+    sparsity_config.sparsity = config['sparsity']
     sparsity_config.dist_type = 'erk'
 
     sparsity_updater = jaxpruner.create_updater_from_config(sparsity_config)
-    tx = optax.adamw(config.learning_rate)
+    tx = optax.adamw(config['learning_rate'])
     tx = sparsity_updater.wrap_optax(tx)
 
     # create an initial state
@@ -56,7 +59,7 @@ def load_model_checkpoint(input_shape: Tuple, config, checkpoint_path):
     )
 
     # restore the actual state from checkpoint
-    restored_state = checkpointer.restore(checkpoint_path / 'state', initial_state)
+    restored_state = checkpointer.restore(checkpoint_path / 'final', initial_state)
     return restored_state
 
 def inference(state: TrainState, input_data: jnp.ndarray, config):
@@ -67,7 +70,7 @@ def inference(state: TrainState, input_data: jnp.ndarray, config):
 
     # would also return the new model state that we dont need
     (reconstructions, latent_vectors), _ = models.model(
-        config.latent_dim, input_data.shape[1], dataset=config.ds
+        config[ 'latent_dim' ], input_data.shape[1], dataset=config[ 'ds' ]
     ).apply(
         variables,
         input_data,
@@ -82,13 +85,26 @@ def save_latent_vectors(latent_vectors, results_folder):
     with open(f"{results_folder}/latent_vectors.npy", 'wb') as f:
         jnp.save(f, latent_vectors)
 
+def load_model_config(config_path):
+    config = {}
+    with open(config_path, 'r') as f:
+        for line in f.readlines():
+            key, value = line.strip().split(':')
+            if key in ['ds', 'results_folder']:
+                config[key] = value
+            else:
+                config[key] = float(value) if '.' in value else int(value)
+    return config
+
+
 def main(argv):
     parser = argparse.ArgumentParser("latent spaces in SAE analysis")
-    parser.add_argument("--config", dest='config.model_config', default='')
+    parser.add_argument("--config", dest='config.model_config', default='') # mnist_latentXX_sparsityXX_bsXX_lOneXX
     parser.add_argument("--samples", dest='config.samples', type=int, default=10) # -1 to get all
     parser.add_argument("--subject", dest='config.subject', type=int, default=3) # -1 to get all
     user_provided_args, default_args = OmegaConf.from_argparse(parser)
     subjects = []
+    shared_images = jnp.ones((1000, 784), jnp.float32)
 
     # iterate over all subjects or only one
     if user_provided_args.config.subject == -1:
@@ -96,18 +112,23 @@ def main(argv):
     else:
         subjects.append(user_provided_args.config.subject)
 
+    # if only want to use a subset of the shared images
+    if user_provided_args.config.samples != -1:
+        shared_images = shared_images[:user_provided_args.config.samples]
+
     for subject in subjects:
         # load the model config
-        model_config = OmegaConf.load(f"{PROJECT_DIR}/results/{user_provided_args.config.model_config}")
+        model_config = load_model_config(f"{PROJECT_DIR}/results/subj{user_provided_args.config.subject}/{user_provided_args.config.model_config}/config")
+        log('loaded model config', 'ANALYSIS')
+        print(model_config)
 
         # load the checkpoint folder
-        ckpt_folder = pathlib.Path(f"{PROJECT_DIR}/{user_provided_args.config.results_folder}")
-
-        # load test data
-        shared_images = None
+        ckpt_folder = pathlib.Path(f"{PROJECT_DIR}/{model_config['results_folder']}/checkpoints")
 
         # restore the models
         model = load_model_checkpoint(shared_images.shape, model_config, ckpt_folder)
+        log('loaded model checkpoint', 'ANALYSIS')
+        print(model.params.keys())
 
         # perform some inference
         # reconstructions, latent_vectors = inference(model, shared_images, model_config)
