@@ -211,13 +211,16 @@ def train_and_evaluate(config):
             validation_step =+ config.batch_size
             metrics, (evaluated_batches, reconstructions), latent_vecs = evaluate_fun(state, validation_batch, epoch_key, config)
 
-            plot_original_reconstruction(evaluated_batches, reconstructions, config, epoch)
-            visualize_latent_activations(latent_vecs, evaluated_batches, config.results_folder,epoch)
-            plot_latent_heatmap(latent_vecs, evaluated_batches, config.results_folder,epoch)
+            # plot_original_reconstruction(evaluated_batches, reconstructions, config, epoch)
+            # visualize_latent_activations(latent_vecs, evaluated_batches, config.results_folder,epoch)
+            # plot_latent_heatmap(latent_vecs, evaluated_batches, config.results_folder,epoch)
 
 
     # save model to disk TODO: use os for this!!
     ckpt_folder = ocp.test_utils.erase_and_create_empty(f'{PROJECT_DIR}/{config.results_folder}/checkpoints')
     checkpointer.save(ckpt_folder / 'final', state)
+    plot_original_reconstruction(evaluated_batches, reconstructions, config, epoch)
+    visualize_latent_activations(latent_vecs, evaluated_batches, config.results_folder,epoch)
+    plot_latent_heatmap(latent_vecs, evaluated_batches, config.results_folder,epoch)
     plot_losses(train_mse_losses, train_spa_losses, config.results_folder, eval_losses, steps_per_epoch)
     visualizer.plot_training_history()

@@ -12,6 +12,8 @@ import optax
 import jaxpruner
 import pathlib
 from logger import log
+from nsd_data import get_train_test_mnist
+from visualisations import visualize_latent_activations
 
 PROJECT_DIR = '/Users/andrea/Desktop/aigs/simple_autoencoder/' # repetition
 
@@ -104,7 +106,9 @@ def main(argv):
     parser.add_argument("--subject", dest='config.subject', type=int, default=3) # -1 to get all
     user_provided_args, default_args = OmegaConf.from_argparse(parser)
     subjects = []
-    shared_images = jnp.ones((1000, 784), jnp.float32)
+    # shared_images = jnp.ones((1000, 784), jnp.float32)
+    _, shared_images = get_train_test_mnist()
+    log(f'shared images shape: {shared_images.shape}', 'ANALYSIS')
 
     # iterate over all subjects or only one
     if user_provided_args.config.subject == -1:
@@ -115,6 +119,7 @@ def main(argv):
     # if only want to use a subset of the shared images
     if user_provided_args.config.samples != -1:
         shared_images = shared_images[:user_provided_args.config.samples]
+        log(f'shared images (new) shape: {shared_images.shape}', 'ANALYSIS')
 
     for subject in subjects:
         # load the model config
@@ -131,11 +136,11 @@ def main(argv):
         print(model.params.keys())
 
         # perform some inference
-        # reconstructions, latent_vectors = inference(model, shared_images, model_config)
+        reconstructions, latent_vectors = inference(model, shared_images, model_config)
 
         # visualize the results
         # plot_original_reconstruction(evaluated_batches, reconstructions, config, epoch)
-        # visualize_latent_activations(latent_vecs, evaluated_batches, config.results_folder,epoch)
+        visualize_latent_activations(latent_vectors, shared_images, model_config['results_folder'], 'tested')
         # plot_latent_heatmap(latent_vecs, evaluated_batches, config.results_folder,epoch)
 
         # save the latent vectors to disk
