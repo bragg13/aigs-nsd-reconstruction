@@ -12,7 +12,7 @@ from flax.training import train_state
 from typing import Any
 import jaxpruner
 import ml_collections
-l1_coeff = 0.1
+import orbax.checkpoint as ocp
 
 class TrainState(train_state.TrainState):
     batch_stats: Any
@@ -45,12 +45,12 @@ def create_train_state(key, init_data, config, fmri_voxels):
         tx=tx
     ), sparsity_updater
 
-def compute_metrics(recon_x, x, latent_vec ):
+def compute_metrics(recon_x, x, latent_vec, config):
     mse_loss = jnp.mean(jnp.square(recon_x - x))
-    sparsity_loss = l1_coeff * jnp.mean(jnp.abs(latent_vec))
+    sparsity_loss = config.l1 * jnp.mean(jnp.abs(latent_vec))
     return {'mse_loss': mse_loss, 'sparsity_loss': sparsity_loss }
 
-def train_step(state, batch, key, latent_dim, ds, sparsity_update):
+def train_step(state, batch, key, config, sparsity_update):
     """Performs a single training step updating model parameters based on batch data.
 
     Args:
@@ -67,13 +67,13 @@ def train_step(state, batch, key, latent_dim, ds, sparsity_update):
     def loss_fn(params):
         fmri_voxels = batch.shape[1]
         variables = {'params': params, 'batch_stats': state.batch_stats}
-        (recon_x, latent_vec), new_model_state = models.model(latent_dim, fmri_voxels, dataset=ds).apply(
+        (recon_x, latent_vec), new_model_state = models.model(config.latent_dim, fmri_voxels, dataset=config.ds).apply(
             variables, batch, dropout_rng, training=True, mutable=['batch_stats'], rngs={'dropout': dropout_rng}
         )
 
         # MSE loss and L1 regularization for sparsity in the latent vector
         mse_loss = jnp.mean(jnp.square(recon_x - batch))
-        sparsity_loss = l1_coeff * jnp.mean(jnp.abs(latent_vec))
+        sparsity_loss = config.l1 * jnp.mean(jnp.abs(latent_vec))
         total_loss = mse_loss+sparsity_loss
 
         return total_loss, (new_model_state, {'mse_loss': mse_loss, 'sparsity_loss': sparsity_loss})
@@ -105,18 +105,12 @@ def evaluate_fun(state, evaluation_batch, key, config):
         variables = {'params': state.params, 'batch_stats': state.batch_stats}
         (reconstruction, latent_vecs), _ = models.model(config.latent_dim, batch.shape[1], dataset=config.ds).apply(
             variables, batch, dropout_rng=dropout_rng, training=True, mutable=['batch_stats'])
-        metrics = compute_metrics(reconstruction, batch, latent_vecs )
+        metrics = compute_metrics(reconstruction, batch, latent_vecs, config)
         return metrics, (batch, reconstruction), latent_vecs
 
     eval = eval_model(evaluation_batch)
     return eval
-    # evaluations = []
-    # for j in range(num_steps):
-    #     batch = loader[validation_step:validation_step+config.batch_size, :]
-    #     # fmri_voxels = batch.shape[1]
-    #     eval = eval_model(batch )
-    #     evaluations.append(eval)
-    # return evaluations
+
 
 def train_and_evaluate(config):
     """Train and evaulate pipeline."""
@@ -175,15 +169,19 @@ def train_and_evaluate(config):
         key1, key2 = random.split(rng)
         train_loader = get_batches(train_ds, key1, config.batch_size)
         validation_loader = get_batches(validation_ds, key2, config.batch_size)
+        # _, state = nnx.split(model)
+        # nnx.display(state)
 
-        pre_op = jax.jit(sparsity_updater.pre_forward_update)
+        # checkpointer = ocp.StandardCheckpointer()
+        # checkpointer.save(ckpt_dir / 'state', state)
+        # pre_op = jax.jit(sparsity_updater.pre_forward_update)
         post_op = jax.jit(sparsity_updater.post_gradient_update)
 
         # Training loop
         for step in (pbar := tqdm(range(0, len(train_loader), config.batch_size), total=steps_per_epoch)):
 
             batch = train_loader[step:step+config.batch_size]
-            state, losses = train_step(state, batch, epoch_key, config.latent_dim, config.ds, sparsity_updater)
+            state, losses = train_step(state, batch, epoch_key, config, sparsity_updater)
             mse_loss, spa_loss = losses['mse_loss'], losses['sparsity_loss']
 
             # implemening sparsity
