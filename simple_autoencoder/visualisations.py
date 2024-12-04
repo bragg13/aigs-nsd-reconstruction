@@ -1,7 +1,10 @@
+# %%
 import matplotlib.pyplot as plt
 import numpy as np
+from surf_plot import plotRoiClassValues
+from nsd_data import split_hemispheres, unmask_from_roi_class
 
-
+# %%
 def plot_results_epoch(batch, reconstructions, latent_vec, epoch, step):
     # print(f"shape batch is {batch.shape}")
     # print(f"shape recons is {reconstructions.shape}")
@@ -116,6 +119,34 @@ def plot_original_reconstruction(originals, reconstructions, dataset, epoch ):
 
     fig.savefig(f'./results/epoch_{epoch}.png')
 
-def plot_original_reconstruction_fmri(originals, reconstructions, epoch):
-    # TODO: implement to show the brain surface with the original and reconstructed fmri data
-    pass
+# %%
+def plot_original_reconstruction_fmri(subject, originals, reconstructions, epoch, roi='EBA', style='infl', cmap='cold_hot', total_surface_size=19004+20544):
+    """Arg total_surface_size should be the subject's length of lh frmi + length of rh fmri. For most subjects it's 19004 + 20544."""
+    originals = unmask_from_roi_class(subject, originals, 'floc-bodies', 'all', (originals.shape[0], total_surface_size))
+    reconstructions = unmask_from_roi_class(subject, reconstructions, 'floc-bodies', 'all', (reconstructions.shape[0], total_surface_size))
+
+    originals_lh, originals_rh = split_hemispheres(originals)
+    recon_lh, recon_rh = split_hemispheres(reconstructions)
+
+    fig = plt.figure(layout='constrained', figsize=(16, 12))
+    fig.suptitle(f'Epoch {epoch}')
+    ogs, recons = fig.subfigures(1, 2, wspace=0.0)
+    ogs.suptitle('original')
+    recons.suptitle('reconstructed')
+
+    def create_figs(fig):
+        lh, rh = fig.subfigures(1, 2, wspace=0.0)
+        lh.suptitle('left hemisphere')
+        rh.suptitle('right hemisphere')
+        return lh.subfigures(3, 1, wspace=0, hspace=0.0), rh.subfigures(3, 1, wspace=0.0, hspace=0.0)
+
+    og_lhs, og_rhs = create_figs(ogs)
+    recon_lhs, recon_rhs = create_figs(recons)
+
+    for i in range(3):
+        plotRoiClassValues(originals_lh, i, roi, 'lh', cmap, style=style, fig=og_lhs[i])
+        plotRoiClassValues(originals_rh, i, roi, 'rh', cmap, style=style, fig=og_rhs[i])
+        plotRoiClassValues(recon_lh, i, roi, 'lh', cmap, style=style, fig=recon_lhs[i])
+        plotRoiClassValues(recon_rh, i, roi, 'rh', cmap, style=style, fig=recon_rhs[i])
+    
+    fig.savefig(f'./results/epoch_{epoch}.png', bbox_inches='tight', dpi=150)

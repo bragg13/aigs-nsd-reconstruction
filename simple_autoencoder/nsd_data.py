@@ -15,7 +15,8 @@ from sklearn.model_selection import train_test_split
 from roi import load_roi_data
 # jnp.fft.fft2(matirx)
 
-
+subjects = [3]
+ROI_DATA = {subject: load_roi_data(subject) for subject in subjects}
 
 # %% track image list indices in dataframe
 def images_to_nsd_df(subject=3):
@@ -111,10 +112,8 @@ def get_split_masked_datasets(indices, subject=3, roi_class='floc-bodies', hem='
     sec_lh_fmri = jnp.load(lh_fmri_path)[sec_idxs]
     sec_rh_fmri = jnp.load(rh_fmri_path)[sec_idxs]
 
-    # get the ROI mask
-    roi_data = load_roi_data(subject)
     # maske the data by ROI
-    roi_lh, roi_rh = roi_data['challenge']['lh'][roi_class] > 0, roi_data['challenge']['rh'][roi_class] > 0
+    roi_lh, roi_rh = ROI_DATA[subject]['challenge']['lh'][roi_class] > 0, ROI_DATA[subject]['challenge']['rh'][roi_class] > 0
 
     first_lh_fmri = first_lh_fmri[:, roi_lh]
     first_rh_fmri = first_rh_fmri[:, roi_rh]
@@ -207,23 +206,21 @@ def get_batches(fmri, key, batch_size: int):
 
 # %% split data into lh and rh
 # split_idx needs to be the len of lh fmri with only roi class, probably different for each subject
-def split_hemispheres(fmri, split_idx=3633):
+def split_hemispheres(fmri, split_idx=19004):
+    """Args: split_idx is the length of the subject's left hemipshere"""
     return fmri[:, :split_idx], fmri[:, split_idx:]
 
 # %% unmask data to original challenge space
 # mqyabe not really unsmaking but called it that way..
-def unmask_hemisphere(masked, roi_mask, challenge_fmri_shape):
+def unmask_from_roi_class(subject, masked, roi_class, hem, challenge_fmri_shape):
+    if hem == 'all':
+        roi_lh = ROI_DATA[subject]['challenge']['lh'][roi_class] > 0
+        roi_rh = ROI_DATA[subject]['challenge']['rh'][roi_class] > 0
+        roi_mask = np.concatenate([roi_lh, roi_rh], axis=0)
+    elif hem == 'lh':
+        roi_mask = ROI_DATA[subject]['challenge']['lh'][roi_class] > 0
+    elif hem == 'rh':
+        roi_mask = ROI_DATA[subject]['challenge']['rh'][roi_class] > 0
     unmasked = np.zeros(challenge_fmri_shape)
     unmasked[:, roi_mask] = masked
     return unmasked
-
-train_all, test_all = get_train_test_datasets(hem="all")
-lh_masked, rh_masked = split_hemispheres(test_all)
-
-# lh_unmasked = unmask_hemisphere(lh_masked, roi_lh, (819,19004))
-
-# from surf_plot import viewRoiClassValues
-
-# view = viewRoiClassValues(lh_unmasked, 2, 'EBA', 'lh', 'cold_hot')
-# view.open_in_browser()
-# %%
