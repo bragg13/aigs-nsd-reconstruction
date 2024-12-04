@@ -24,10 +24,10 @@ class argObj:
 
 args = argObj(data_dir, subject)
 
-# # load the dataset
-# fmri_dir = os.path.join(args.data_dir, 'training_split', 'training_fmri')
-# lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
-# rh_fmri = np.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
+# load the dataset
+fmri_dir = os.path.join(args.data_dir, 'training_split', 'training_fmri')
+lh_fmri = np.load(os.path.join(fmri_dir, 'lh_training_fmri.npy'))
+rh_fmri = np.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
 
 # print(f'LH training fMRI data shape:\n{lh_fmri.shape} (Training stimulus images × LH vertices)')
 # print(f'\nRH training fMRI data shape:\n{rh_fmri.shape} (Training stimulus images × RH vertices)')
@@ -112,8 +112,8 @@ def view_surf(fsaverage_map, hemi, title: str, cmap, vmax=None, vmin=None, sym_c
 def plot_surf(fsaverage_map, hemi, title: str, cmap, style='flat', fig=None, vmax=None, vmin=None, sym_cmap=True):
     """Arg title should be ROI or ROI class"""
     if style == 'flat': view = (90, -90)
-    elif style == 'infl' and hemi == 'lh': view = (-30, -120)
-    elif style == 'infl' and hemi == 'rh': view = (-30, -60)
+    elif (style == 'infl' or style == 'sphere') and hemi == 'lh': view = (-30, -120)
+    elif (style == 'infl' or style == 'sphere') and hemi == 'rh': view = (-30, -60)
     if hemi == 'lh': hemi = 'left'
     elif hemi == 'rh': hemi = 'right'
     return plotting.plot_surf(
@@ -161,4 +161,4 @@ def plotRoiClassValues(fmri, img, roi, hemi, cmap, style, fig=None):
 # roivalues = viewRoiValues(lh_fmri, img, 'EBA', 'lh', cmap='blue_transparent_full_alpha_range')
 # roivalues.open_in_browser()
 
-# plotRoiClassValues(rh_fmri, img, 'EBA', hemi='rh', cmap='cold_hot', style='infl')
+plotRoiClassValues(rh_fmri, img, 'EBA', hemi='rh', cmap='cold_hot', style='sphere')

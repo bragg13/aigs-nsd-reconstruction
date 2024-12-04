@@ -120,8 +120,12 @@ def plot_original_reconstruction(originals, reconstructions, dataset, epoch ):
     fig.savefig(f'./results/epoch_{epoch}.png')
 
 # %%
-def plot_original_reconstruction_fmri(subject, originals, reconstructions, epoch, roi='EBA', style='infl', cmap='cold_hot', total_surface_size=19004+20544):
-    """Arg total_surface_size should be the subject's length of lh frmi + length of rh fmri. For most subjects it's 19004 + 20544."""
+def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, epoch, roi='EBA', style='infl', cmap='cold_hot', total_surface_size=19004+20544):
+    """
+    Args:
+        style (str, optional): ['infl', 'flat', 'sphere']. Defaults to 'infl'.
+        total_surface_size (int, otpional): sum of lh fmri size and rh fmri size of the subject. Defaults to 19004 + 20544 (true for most subjects).
+    """
     originals = unmask_from_roi_class(subject, originals, 'floc-bodies', 'all', (originals.shape[0], total_surface_size))
     reconstructions = unmask_from_roi_class(subject, reconstructions, 'floc-bodies', 'all', (reconstructions.shape[0], total_surface_size))
 
@@ -150,3 +154,5 @@ def plot_original_reconstruction_fmri(subject, originals, reconstructions, epoch
         plotRoiClassValues(recon_rh, i, roi, 'rh', cmap, style=style, fig=recon_rhs[i])
     
     fig.savefig(f'./results/epoch_{epoch}.png', bbox_inches='tight', dpi=150)
+
+# %%
