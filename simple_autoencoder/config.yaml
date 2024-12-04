@@ -1,7 +1,7 @@
 learning_rate: 1e-4
 batch_size: 32
 latent_dim: 256
-num_epochs: 15
+num_epochs: 20
 sparsity: 0.8
 l1: 0.1
 ds: mnist

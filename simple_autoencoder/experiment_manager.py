@@ -150,12 +150,12 @@ if __name__ == "__main__":
     # Define parameter ranges to explore
     param_ranges = {
         "learning_rate": [1e-4, 1e-5],
-        "subject": [1],
+        "subject": [1, 2],
         "batch_size": [256],
-        "latent_dim": [32],
-        "sparsity": [0.5, 0.8],
-        "l1": [0.01],
-        # 'ds': ['mnist', 'cifar10']
+        "latent_dim": [16, 32],
+        "sparsity": [0.5, 0.8, 0.9],
+        "l1": [0.01, 0.1],
+        "ds": ["mnist", "cifar10"],
     }
 
     # Run all experiments
