@@ -54,13 +54,13 @@ def get_categories_df(df):
 def filterByCategory(df, category: str, contain = True):
     if contain : df = df[df['categories'].apply(lambda x: category in x)]
     else : df =  df[df['categories'].apply(lambda x: category not in x)]
-    print(f'\n{category}: {len(df)} images')
+    # print(f'\n{category}: {len(df)} images')
     return df
 
 def splitByCategory(df, category: str):
     df1 = df[df['categories'].apply(lambda x: category in x)]
     df2 = df[df['categories'].apply(lambda x: category not in x)]
-    if not debug:
+    if debug:
         print(f'\ncategory split:')
         print(f'{category}: {len(df1)} images')
         print(f'not {category}: {len(df2)} images')

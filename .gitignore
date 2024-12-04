@@ -7,4 +7,4 @@ simple_autoencoder/__pycache__/
 *.DS_STORE
 panoptic_annotations/
 __pycache__/
-
+simple_autoencoder/experiments/

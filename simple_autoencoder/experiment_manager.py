@@ -155,7 +155,7 @@ if __name__ == "__main__":
         "latent_dim": [16, 32],
         "sparsity": [0.5, 0.8, 0.9],
         "l1": [0.01, 0.1],
-        "ds": ["mnist", "cifar10"],
+        # "ds": ["mnist", "cifar10"],
     }
 
     # Run all experiments

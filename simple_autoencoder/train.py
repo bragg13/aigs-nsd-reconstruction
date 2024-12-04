@@ -221,6 +221,8 @@ def train_and_evaluate(config):
         # pre_op = jax.jit(sparsity_updater.pre_forward_update)
         post_op = jax.jit(sparsity_updater.post_gradient_update)
 
+        tmp_loss = []
+
         # Training loop
         for step in (
             pbar := tqdm(
@@ -235,8 +237,9 @@ def train_and_evaluate(config):
             post_params = post_op(state.params, state.opt_state)
             state = state.replace(params=post_params)
 
-            train_mse_losses.append(mse_loss)
-            train_spa_losses.append(spa_loss)
+            tmp_loss.append(mse_loss)
+            # train_mse_losses.append(mse_loss)
+            # train_spa_losses.append(spa_loss)
 
             if step % (steps_per_epoch // 5) == 0:
                 validation_batch = validation_loader[
@@ -249,6 +252,10 @@ def train_and_evaluate(config):
                 )
 
                 visualizer.update(latent_vecs)
+
+                # average the training loss and append it to the list
+                train_mse_losses.append(jnp.mean(jnp.array(tmp_loss)))
+                tmp_loss = []
 
                 eval_losses.append(metrics["mse_loss"])
                 val_loss = metrics["mse_loss"]
@@ -278,11 +285,6 @@ def train_and_evaluate(config):
         f"{PROJECT_DIR}/{config.results_folder}/checkpoints"
     )
     checkpointer.save(ckpt_folder / "final", state)
-    plot_original_reconstruction(evaluated_batches, reconstructions, config, epoch)
-    visualize_latent_activations(
-        latent_vecs, evaluated_batches, config.results_folder, epoch
-    )
-    plot_latent_heatmap(latent_vecs, evaluated_batches, config.results_folder, epoch)
     plot_losses(
         train_mse_losses,
         train_spa_losses,
@@ -290,4 +292,9 @@ def train_and_evaluate(config):
         eval_losses,
         steps_per_epoch,
     )
+    plot_original_reconstruction(evaluated_batches, reconstructions, config, epoch)
+    visualize_latent_activations(
+        latent_vecs, evaluated_batches, config, epoch
+    )
+    plot_latent_heatmap(latent_vecs, evaluated_batches, config, epoch)
     visualizer.plot_training_history()

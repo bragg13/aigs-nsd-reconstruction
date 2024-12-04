@@ -4,6 +4,11 @@ import seaborn as sns
 from typing import Tuple, List
 import jax.numpy as jnp
 
+ds_sizes = {
+    'mnist': (28, 28),
+    'cifar10': (32, 32),
+    'fmri': (100, 32),
+}
 # training related
 def plot_losses(train_losses_mse: List, train_losses_spa: List, results_folder: str, eval_losses: List, steps_per_epoch: int)-> None:
     num_steps = len(train_losses_mse)
@@ -13,8 +18,8 @@ def plot_losses(train_losses_mse: List, train_losses_spa: List, results_folder: 
     plt.figure(figsize=(10,10))
     plt.title('Train Losses over steps')
     plt.plot(train_losses_mse, label='train mse', color='blue')
-    plt.plot(train_losses_spa, label='train spa', color='gray')
-    plt.plot(indices_eval[:_min], eval_losses[:_min], label='eval', color='orange')
+    # plt.plot(train_losses_spa, label='train spa', color='gray')
+    plt.plot(eval_losses, label='eval', color='orange')
     plt.xlabel('steps')
 
     # add xticks for epochs
@@ -27,11 +32,6 @@ def plot_losses(train_losses_mse: List, train_losses_spa: List, results_folder: 
 
 
 def plot_original_reconstruction(originals: jnp.ndarray, reconstructions: jnp.ndarray, config, epoch: int )-> None:
-    ds_sizes = {
-        'mnist': (28, 28),
-        'cifar10': (32, 32),
-        'fmri': (100, 32),
-    }
     fig,axs = plt.subplots(5, 3, figsize=(15,15))
     axs[0, 0].set_title('original')
     axs[0, 1].set_title('reconstructed')
@@ -58,7 +58,7 @@ def plot_original_reconstruction_fmri(originals, reconstructions, results_folder
 # latent vector related
 def visualize_latent_activations(latent_vecs: jnp.ndarray,
                                images: jnp.ndarray,
-                               results_folder: str,
+                               config,
                                epoch: int | str,
                                num_examples: int = 5) -> None:
     """
@@ -72,13 +72,15 @@ def visualize_latent_activations(latent_vecs: jnp.ndarray,
     fig, axes = plt.subplots(2, num_examples, figsize=(15, 4))
     plt.suptitle('Samples with their Latent Representations')
 
+    h, w = ds_sizes[config.ds]
     for i in range(num_examples):
         # Show original image
-        if len(images.shape) == 2:  # If images are flattened
-            img_size = int(np.sqrt(images.shape[1]))
-            img = images[i][:3600].reshape(img_size, img_size)
-        else:
-            img = images[i][:3600]
+        img = images[i][:h*w].reshape(h, w)
+        # if len(images.shape) == 2:  # If images are flattened
+        #     img_size = int(np.sqrt(images.shape[1]))
+        #     img = images[i][:3600].reshape(img_size, img_size)
+        # else:
+        #     img = images[i][:3600]
         axes[0, i].imshow(img, cmap='gray')
         axes[0, i].axis('off')
 
@@ -88,11 +90,11 @@ def visualize_latent_activations(latent_vecs: jnp.ndarray,
         axes[1, i].set_title(f'Latent Vector {i+1}')
 
     plt.tight_layout()
-    plt.savefig(f'{results_folder}/latent_activations_{epoch}.png')
+    plt.savefig(f'{config.results_folder}/latent_activations_{epoch}.png')
 
 def plot_latent_heatmap(latent_vecs: jnp.ndarray,
                        images: jnp.ndarray,
-                       results_folder: str,
+                       config,
                        epoch: int,
                        num_examples: int = 10) -> None:
     """
@@ -111,7 +113,7 @@ def plot_latent_heatmap(latent_vecs: jnp.ndarray,
     plt.xlabel('Sample')
     plt.ylabel('Latent Dimension')
     plt.title('Latent Space Activation Patterns')
-    plt.savefig(f'{results_folder}/latent_heatmap_{epoch}.png')
+    plt.savefig(f'{config.results_folder}/latent_heatmap_{epoch}.png')
 
 def track_latent_statistics(latent_vecs) -> Tuple[List[float], List[float]]:
     """
