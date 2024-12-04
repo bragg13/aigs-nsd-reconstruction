@@ -1,4 +1,4 @@
-# import libraries
+# %% import libraries
 from logger import log
 import tensorflow_datasets as tfds
 import os
@@ -15,6 +15,9 @@ from sklearn.model_selection import train_test_split
 from roi import load_roi_data
 # jnp.fft.fft2(matirx)
 
+
+
+# %% track image list indices in dataframe
 def images_to_nsd_df(subject=3):
     # training and test images list, sorted
     images_path = os.path.join("../data", "subj0"+str(subject), "training_split", "training_images")
@@ -36,6 +39,7 @@ def images_to_nsd_df(subject=3):
 # andrea i'll leave this here, you can restructure as you want, but images_to_nsd is used in get_shared_inidces and get_train_test_indices
 images_to_nsd = images_to_nsd_df(subject=3)
 
+# %% get indices for the training, test and analysis split
 def get_shared_indices(category: str):
     coco_loaded = cl.nsd_coco
     shared_df = cl.getSharedDf(coco_loaded).merge(images_to_nsd, on='nsdId')
@@ -66,17 +70,17 @@ def get_train_test_indices(subject=3):
     train_idxs, test_idxs = train_test_split(np.arange(len(subject_images)), test_size=0.1, random_state=42)
     return train_idxs, test_idxs
 
+# %% normalise data
 # def normalise(_max, _min, data):
 #    return jnp.array((data - _min) / (_max - _min))
-
 def z_score(data):
     print(data.min())
     normalised = jnp.array((data - data.mean()) / data.std())
     print(normalised.min())
     return normalised
 
-
-def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all') -> tuple:
+# %% get dataset splits based on indices
+def get_split_masked_datasets(indices, subject=3, roi_class='floc-bodies', hem='all') -> tuple:
     """Get training and test fMRI datasets for a specified subject and ROI class.
 
     Args:
@@ -98,47 +102,70 @@ def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all') -> tu
     rh_fmri_path = os.path.join(fmri_base_path, "rh_training_fmri.npy")
 
     # get the indices for training and testing
-    train_idxs, test_idxs = get_train_test_indices(subject)
-
-    # get the ROI mask
-    roi_data = load_roi_data(subject=3)
-
+    first_idxs, sec_idxs = indices
     # load the fmri data, sliced by indexes
     # ndr: for one image, there is both the left and right hemisphere (I mean not necessarily, but yea)
-    train_lh_fmri = jnp.load(lh_fmri_path)[train_idxs]
-    train_rh_fmri = jnp.load(rh_fmri_path)[train_idxs]
+    first_lh_fmri = jnp.load(lh_fmri_path)[first_idxs]
+    first_rh_fmri = jnp.load(rh_fmri_path)[first_idxs]
 
-    test_lh_fmri = jnp.load(lh_fmri_path)[test_idxs]
-    test_rh_fmri = jnp.load(rh_fmri_path)[test_idxs]
+    sec_lh_fmri = jnp.load(lh_fmri_path)[sec_idxs]
+    sec_rh_fmri = jnp.load(rh_fmri_path)[sec_idxs]
 
+    # get the ROI mask
+    roi_data = load_roi_data(subject)
     # maske the data by ROI
     roi_lh, roi_rh = roi_data['challenge']['lh'][roi_class] > 0, roi_data['challenge']['rh'][roi_class] > 0
 
-    train_lh_fmri = train_lh_fmri[:, roi_lh]
-    train_rh_fmri = train_rh_fmri[:, roi_rh]
-    test_lh_fmri = test_lh_fmri[:, roi_lh]
-    test_rh_fmri = test_rh_fmri[:, roi_rh]
+    first_lh_fmri = first_lh_fmri[:, roi_lh]
+    first_rh_fmri = first_rh_fmri[:, roi_rh]
+    sec_lh_fmri = sec_lh_fmri[:, roi_lh]
+    sec_rh_fmri = sec_rh_fmri[:, roi_rh]
 
-    # _max = max(train_lh_fmri.max(), train_rh_fmri.max(), test_lh_fmri.max(), test_rh_fmri.max())
-    # _min = min(train_lh_fmri.min(), train_rh_fmri.min(), test_lh_fmri.min(), test_rh_fmri.min())
+    # _max = max(first_lh_fmri.max(), first_rh_fmri.max(), sec_lh_fmri.max(), sec_rh_fmri.max())
+    # _min = min(first_lh_fmri.min(), first_rh_fmri.min(), sec_lh_fmri.min(), sec_rh_fmri.min())
 
     if hem == 'all':
-        train_all_fmri = np.concatenate([train_lh_fmri, train_rh_fmri], axis=1)
-        test_all_fmri = np.concatenate([test_lh_fmri, test_rh_fmri], axis=1)
+        train_all_fmri = np.concatenate([first_lh_fmri, first_rh_fmri], axis=1)
+        test_all_fmri = np.concatenate([sec_lh_fmri, sec_rh_fmri], axis=1)
         return z_score(train_all_fmri), z_score(test_all_fmri)
         # return normalise(_max, _min, train_all_fmri), normalise(_max, _min, test_all_fmri)
 
     elif hem == 'lh':
-        return z_score(train_lh_fmri), z_score(test_lh_fmri)
-        # return normalise(_max, _min, train_lh_fmri), normalise(_max, _min, test_lh_fmri)
+        return z_score(first_lh_fmri), z_score(sec_lh_fmri)
+        # return normalise(_max, _min, first_lh_fmri), normalise(_max, _min, sec_lh_fmri)
 
     elif hem == 'rh':
-        return z_score(train_rh_fmri), z_score(test_rh_fmri)
-        # return normalise(_max, _min, train_rh_fmri), normalise(_max, _min, test_rh_fmri)
+        return z_score(first_rh_fmri), z_score(sec_rh_fmri)
+        # return normalise(_max, _min, first_rh_fmri), normalise(_max, _min, sec_rh_fmri)
 
     else:
         raise ValueError(f"Invalid hemisphere selection: {hem}. Must be 'all', 'lh', or 'rh'.")
 
+def get_train_test_datasets(subject=3, roi_class='floc-bodies', hem='all') -> tuple:
+    """
+    Args:
+        subject (int, optional): The subject ID number (1-8). Defaults to 3.
+        roi_class (str, optional): Region of interest class name. Defaults to 'floc-bodies'.
+        hem (str, optional): Hemisphere selection ('all', 'lh', or 'rh'). Defaults to 'all'.
+    Returns:
+        tuple: Two arrays containing train and test fMRI data respectively.
+    """
+    indices = get_train_test_indices(subject)
+    return get_split_masked_datasets(indices, subject, roi_class, hem)
+
+def get_analysis_datasets(category='person', subject=3, roi_class='floc-bodies', hem='all') -> tuple:
+    """
+    Args:
+        category (str, optional): The coco category. Defaults to 'person'.
+        subject (int, optional): The subject ID number (1-8). Defaults to 3.
+        roi_class (str, optional): Region of interest class name. Defaults to 'floc-bodies'.
+        hem (str, optional): Hemisphere selection ('all', 'lh', or 'rh'). Defaults to 'all'.
+    Returns:
+        tuple: Two arrays containing fMRI data resulted from shared images of category and not-category respectively.
+    """
+    indices = get_shared_indices(category)
+    return get_split_masked_datasets(indices, subject, roi_class, hem)
+# %%
 def get_train_test_mnist():
     # load the mnist dataset from tfds
     mnist = tfds.load("mnist", split='train')
@@ -162,7 +189,6 @@ def get_train_test_cifar10():
     print(f"train_ds length: {len(train)}, test_ds {len(test)}")
     return x_data[train], x_data[test]
 
-
 def get_batches(fmri, key, batch_size: int):
     """Create batches of fMRI data with the specified batch size.
 
@@ -178,3 +204,26 @@ def get_batches(fmri, key, batch_size: int):
     permutation = random.permutation(key, num_samples // batch_size * batch_size)
     # print(f"permutatin first: {permutation[:5]}")
     return fmri[permutation]
+
+# %% split data into lh and rh
+# split_idx needs to be the len of lh fmri with only roi class, probably different for each subject
+def split_hemispheres(fmri, split_idx=3633):
+    return fmri[:, :split_idx], fmri[:, split_idx:]
+
+# %% unmask data to original challenge space
+# mqyabe not really unsmaking but called it that way..
+def unmask_hemisphere(masked, roi_mask, challenge_fmri_shape):
+    unmasked = np.zeros(challenge_fmri_shape)
+    unmasked[:, roi_mask] = masked
+    return unmasked
+
+train_all, test_all = get_train_test_datasets(hem="all")
+lh_masked, rh_masked = split_hemispheres(test_all)
+
+# lh_unmasked = unmask_hemisphere(lh_masked, roi_lh, (819,19004))
+
+# from surf_plot import viewRoiClassValues
+
+# view = viewRoiClassValues(lh_unmasked, 2, 'EBA', 'lh', 'cold_hot')
+# view.open_in_browser()
+# %%

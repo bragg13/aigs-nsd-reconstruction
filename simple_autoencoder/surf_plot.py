@@ -7,11 +7,13 @@ from nilearn import datasets
 from nilearn import plotting
 from nilearn import image
 import nibabel as nib
-from roi import ROI_TO_CLASS
+from roi import ROI_TO_CLASS, load_roi_data
 
 # %% download the dataset, this is also in nsd_data
 data_dir = '../data'
 subject = 3
+img = 0
+FSAVERAGE = datasets.fetch_surf_fsaverage('fsaverage')
 
 # the class to load and store data
 class argObj:
@@ -29,19 +31,11 @@ rh_fmri = np.load(os.path.join(fmri_dir, 'rh_training_fmri.npy'))
 print(f'LH training fMRI data shape:\n{lh_fmri.shape} (Training stimulus images × LH vertices)')
 print(f'\nRH training fMRI data shape:\n{rh_fmri.shape} (Training stimulus images × RH vertices)')
 
-# %% load image lists and define some params
-img = 0
-
-# train image directory
 train_img_dir  = os.path.join(args.data_dir, 'training_split', 'training_images')
-test_img_dir  = os.path.join(args.data_dir, 'test_split', 'test_images')
-
-# train and test i
 train_img_list = os.listdir(train_img_dir).sort()
-test_img_list = os.listdir(test_img_dir).sort()
 
 # %% img plot
-def plotImg(img: int):
+def plot_img(img: int):
     # Load the image
     img_dir = os.path.join(train_img_dir, train_img_list[img])
     train_img = Image.open(img_dir).convert('RGB')
@@ -54,7 +48,7 @@ def plotImg(img: int):
     plt.show()
 
 # %% print data for paper figure
-def printData(roi_map, challenge_roi_class, fsaverage_roi_class, start=250, end=300):
+def print_data(roi_map, challenge_roi_class, fsaverage_roi_class, start=250, end=300):
     print(f'\nfloc-bodies: {roi_map}')
     print(f'fsaverage space: {len(fsaverage_roi_class)}')
     print(f'\nlh.floc-bodies_fsaverage_space[{start}:{end}]')
@@ -67,20 +61,17 @@ def printData(roi_map, challenge_roi_class, fsaverage_roi_class, start=250, end=
 
 # %% show roi on brain surface map
 
-# this should now be sourced from roi.py
+# not sure where to place this correctly so it doesn't get reloaded everytime
+roi_data = load_roi_data(subject)
+
 def get_roi_data(roi_class, hemi):
-    challenge_roi_class_dir = os.path.join(args.data_dir, 'roi_masks', hemi[0]+'h.'+roi_class+'_challenge_space.npy')
-    fsaverage_roi_class_dir = os.path.join(args.data_dir, 'roi_masks', hemi[0]+'h.'+roi_class+'_fsaverage_space.npy')
-    roi_map_dir = os.path.join(args.data_dir, 'roi_masks', 'mapping_'+roi_class+'.npy')
-    
-    # Load the ROI brain surface maps
-    challenge_roi_class = np.load(challenge_roi_class_dir) # roi indices mapped to challange space
-    fsaverage_roi_class = np.load(fsaverage_roi_class_dir) # roi indices mapped to fsaverage
-    roi_map = np.load(roi_map_dir, allow_pickle=True).item()
+    challenge_roi_class = roi_data['challenge'][hemi][roi_class] # roi indices mapped to challange space
+    fsaverage_roi_class = roi_data['fsaverage'][hemi][roi_class] # roi indices mapped to fsaverage
+    roi_map = roi_data['mapping'][roi_class]['id_to_roi']
     return challenge_roi_class, fsaverage_roi_class, roi_map
 
 # map challenge space to fsaverage for roi of interest
-def map_fsaverage_resp(img, roi, hemisphere:str, full_class=False):
+def map_fsaverage_resp(fmri, img, roi, hemisphere: str, full_class=False):
     challenge_roi_class, fsaverage_roi_class, roi_map = get_roi_data(ROI_TO_CLASS[roi], hemisphere)
     
     if full_class: 
@@ -93,19 +84,17 @@ def map_fsaverage_resp(img, roi, hemisphere:str, full_class=False):
         fsvg_roi, ch_roi = fsaverage_roi, challenge_roi
     
     fsaverage_response = np.zeros(len(fsvg_roi))
-    if hemisphere == 'left':
-        fsaverage_response[np.where(fsvg_roi)[0]] = lh_fmri[img,np.where(ch_roi)[0]]
-    elif hemisphere == 'right':
-        fsaverage_response[np.where(fsvg_roi)[0]] = rh_fmri[img,np.where(ch_roi)[0]]
+    fsaverage_response[np.where(fsvg_roi)[0]] = fmri[img, np.where(ch_roi)[0]]
     return fsaverage_response
 
-def plotViewSurf(fsaverage_map, hemi, title: str, cmap, vmax=None, vmin=None, sym_cmap=True):
-    """title should be ROI or ROI class"""
-    fsaverage = datasets.fetch_surf_fsaverage('fsaverage') # this should be global
+def view_surf(fsaverage_map, hemi, title: str, cmap, vmax=None, vmin=None, sym_cmap=True):
+    """Arg title should be ROI or ROI class"""
+    if hemi == 'lh': hemi = 'left'
+    elif hemi == 'rh': hemi = 'right'
     return plotting.view_surf(
-        surf_mesh=fsaverage['infl' + '_' + hemi], # flat_ , pial_ , sphere_
+        surf_mesh=FSAVERAGE['infl' + '_' + hemi], # flat_ , pial_ , sphere_
         surf_map=fsaverage_map,
-        bg_map=fsaverage['sulc_' + hemi],
+        bg_map=FSAVERAGE['sulc_' + hemi],
         threshold=1e-14,
         cmap=cmap,
         colorbar=True,
@@ -116,22 +105,24 @@ def plotViewSurf(fsaverage_map, hemi, title: str, cmap, vmax=None, vmin=None, sy
         )
 
 # %% plot functions
-def plotRoiClass(roi_class,hemi,cmap):
+def viewRoiClass(roi_class, hemi, cmap):
     _, fsaverage_roi_class, _ = get_roi_data(roi_class, hemi)
-    return plotViewSurf(fsaverage_roi_class, hemi, roi_class, cmap, vmax=3.,vmin=1.,sym_cmap=False)
+    return view_surf(fsaverage_roi_class, hemi, roi_class, cmap, vmax=3.,vmin=1.,sym_cmap=False)
 
-def plotRoiClassValues(img, roi,hemi,cmap):
-    fsaverage_response = map_fsaverage_resp(img, roi, hemi, full_class=True)
-    return plotViewSurf(fsaverage_response, hemi, ROI_TO_CLASS[roi], cmap)
+def viewRoiClassValues(fmri, img, roi, hemi, cmap):
+    fsaverage_response = map_fsaverage_resp(fmri, img, roi, hemi, full_class=True)
+    return view_surf(fsaverage_response, hemi, ROI_TO_CLASS[roi], cmap)
 
-def plotRoiValues(img, roi,hemi,cmap):
-    fsaverage_response = map_fsaverage_resp(img, roi, hemi)
-    return plotViewSurf(fsaverage_response, hemi, roi, cmap)
+def viewRoiValues(fmri, img, roi, hemi, cmap):
+    fsaverage_response = map_fsaverage_resp(fmri, img, roi, hemi)
+    return view_surf(fsaverage_response, hemi, roi, cmap)
 
-# %% view in browser
-roiclass = plotRoiClass('floc-bodies', hemi='left', cmap='brg')
-roiclass.open_in_browser()
-roiclassvalues = plotRoiClassValues(img, 'EBA', hemi='left', cmap='cold_hot')
+# %% test view in browser 
+# roiclass = viewRoiClass('floc-bodies', hemi='lh', cmap='brg')
+# roiclass.open_in_browser()
+first_test_idx = 2126 # check nsd_data
+third_test_idx = 4894 # check nsd_data
+roiclassvalues = viewRoiClassValues(lh_fmri, third_test_idx, 'EBA', hemi='lh', cmap='cold_hot')
 roiclassvalues.open_in_browser()
-roivalues = plotRoiValues(img, 'EBA', 'left', cmap='blue_transparent_full_alpha_range')
-roivalues.open_in_browser()
+# roivalues = viewRoiValues(lh_fmri, img, 'EBA', 'lh', cmap='blue_transparent_full_alpha_range')
+# roivalues.open_in_browser()
