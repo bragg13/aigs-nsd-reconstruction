@@ -2,6 +2,7 @@
 Experiment runner for managing multiple training configurations.
 Handles parameter combinations and organizing results systematically.
 """
+
 import itertools
 from pathlib import Path
 from datetime import datetime
@@ -10,6 +11,7 @@ from omegaconf import OmegaConf, DictConfig
 import copy
 from typing import List, Dict, Any
 import json
+
 
 class ExperimentManager:
     """Manages multiple experiments with different parameter combinations."""
@@ -27,7 +29,9 @@ class ExperimentManager:
         self.base_dir = Path(experiment_base_dir)
         self.base_dir.mkdir(exist_ok=True)
 
-    def generate_parameter_grid(self, param_ranges: Dict[str, List[Any]]) -> List[DictConfig]:
+    def generate_parameter_grid(
+        self, param_ranges: Dict[str, List[Any]]
+    ) -> List[DictConfig]:
         """
         Generate all combinations of parameters.
 
@@ -75,10 +79,13 @@ class ExperimentManager:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Create a descriptive name using key parameters
-        param_str = "_".join([
-            f"{k}={v}" for k, v in config.items()
-            if k in ['learning_rate', 'batch_size', 'latent_dim', 'sparsity']
-        ])
+        param_str = "_".join(
+            [
+                f"{k}={v}"
+                for k, v in config.items()
+                if k in ["learning_rate", "batch_size", "latent_dim", "sparsity"]
+            ]
+        )
 
         # Create experiment directory
         exp_dir = self.base_dir / f"{timestamp}_{param_str}"
@@ -121,6 +128,7 @@ class ExperimentManager:
                 with open(exp_dir / "error.log", "w") as f:
                     f.write(f"Error: {str(e)}")
 
+
 # Example usage:
 if __name__ == "__main__":
     # Define your base configuration file (config.yaml):
@@ -141,12 +149,12 @@ if __name__ == "__main__":
 
     # Define parameter ranges to explore
     param_ranges = {
-        'learning_rate': [1e-3, 1e-4],
-        'subject': [1],
-        'batch_size': [256],
-        'latent_dim': [16, 32, 64],
-        'sparsity': [0.8, 0.9],
-        'l1': [0.01, 0.001],
+        "learning_rate": [1e-4, 1e-5],
+        "subject": [1],
+        "batch_size": [256],
+        "latent_dim": [32],
+        "sparsity": [0.5, 0.8],
+        "l1": [0.01],
         # 'ds': ['mnist', 'cifar10']
     }
 

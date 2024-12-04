@@ -59,7 +59,7 @@ def plot_original_reconstruction_fmri(originals, reconstructions, results_folder
 def visualize_latent_activations(latent_vecs: jnp.ndarray,
                                images: jnp.ndarray,
                                results_folder: str,
-                               epoch: int,
+                               epoch: int | str,
                                num_examples: int = 5) -> None:
     """
     Creates a grid showing images and their corresponding latent activations.
