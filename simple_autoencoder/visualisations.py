@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from surf_plot import plotRoiClassValues
 from nsd_data import split_hemispheres, unmask_from_roi_class
+from logger import log
 
 # %%
 def plot_results_epoch(batch, reconstructions, latent_vec, epoch, step):
@@ -120,20 +121,21 @@ def plot_original_reconstruction(originals, reconstructions, dataset, epoch ):
     fig.savefig(f'./results/epoch_{epoch}.png')
 
 # %%
-def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, epoch, roi='EBA', style='infl', cmap='cold_hot', total_surface_size=19004+20544):
+def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, hem, roi_class='floc-bodies', style='infl', cmap='cold_hot', total_surface_size=19004+20544):
     """
     Args:
         style (str, optional): ['infl', 'flat', 'sphere']. Defaults to 'infl'.
         total_surface_size (int, otpional): sum of lh fmri size and rh fmri size of the subject. Defaults to 19004 + 20544 (true for most subjects).
     """
-    originals = unmask_from_roi_class(subject, originals, 'floc-bodies', 'all', (originals.shape[0], total_surface_size))
-    reconstructions = unmask_from_roi_class(subject, reconstructions, 'floc-bodies', 'all', (reconstructions.shape[0], total_surface_size))
+    log('Plotting reconstruction', 'VISUALISATIONS')
+    originals = unmask_from_roi_class(subject, originals, 'floc-bodies', hem, (originals.shape[0], total_surface_size))
+    reconstructions = unmask_from_roi_class(subject, reconstructions, 'floc-bodies', hem, (reconstructions.shape[0], total_surface_size))
 
     originals_lh, originals_rh = split_hemispheres(originals)
     recon_lh, recon_rh = split_hemispheres(reconstructions)
 
     fig = plt.figure(layout='constrained', figsize=(16, 12))
-    fig.suptitle(f'Epoch {epoch}')
+    fig.suptitle(f'Trained Subject {subject}')
     ogs, recons = fig.subfigures(1, 2, wspace=0.0)
     ogs.suptitle('original')
     recons.suptitle('reconstructed')
@@ -146,13 +148,11 @@ def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, e
 
     og_lhs, og_rhs = create_figs(ogs)
     recon_lhs, recon_rhs = create_figs(recons)
-
     for i in range(3):
-        plotRoiClassValues(originals_lh, i, roi, 'lh', cmap, style=style, fig=og_lhs[i])
-        plotRoiClassValues(originals_rh, i, roi, 'rh', cmap, style=style, fig=og_rhs[i])
-        plotRoiClassValues(recon_lh, i, roi, 'lh', cmap, style=style, fig=recon_lhs[i])
-        plotRoiClassValues(recon_rh, i, roi, 'rh', cmap, style=style, fig=recon_rhs[i])
+        plotRoiClassValues(originals_lh, i, roi_class, 'lh', cmap, style=style, fig=og_lhs[i])
+        plotRoiClassValues(originals_rh, i, roi_class, 'rh', cmap, style=style, fig=og_rhs[i])
+        plotRoiClassValues(recon_lh, i, roi_class, 'lh', cmap, style=style, fig=recon_lhs[i])
+        plotRoiClassValues(recon_rh, i, roi_class, 'rh', cmap, style=style, fig=recon_rhs[i])
     
-    fig.savefig(f'./results/epoch_{epoch}.png', bbox_inches='tight', dpi=150)
+    fig.savefig(f'./results/subj{subject}_ogs_recons.png', bbox_inches='tight', dpi=150)
 
-# %%
