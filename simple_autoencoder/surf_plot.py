@@ -160,4 +160,4 @@ def plotRoiClassValues(fmri, img, roi_class, hemi, cmap, style, fig=None):
 # roivalues = viewRoiValues(lh_fmri, img, 'EBA', 'lh', cmap='blue_transparent_full_alpha_range')
 # roivalues.open_in_browser()
 
-plotRoiClassValues(rh_fmri, img, 'floc-bodies', hemi='rh', cmap='cold_hot', style='sphere')
+# plotRoiClassValues(rh_fmri, img, 'floc-bodies', hemi='rh', cmap='cold_hot', style='sphere')
