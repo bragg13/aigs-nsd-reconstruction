@@ -54,6 +54,36 @@ def plot_original_reconstruction_fmri(originals, reconstructions, results_folder
     # fig.savefig(f'/{results_folder}/reconstruction_{epoch}.png')
     pass
 
+from coco_load import getSubCatjDf, filterByCategory, nsd_coco
+
+def plot_category_distribution(category='person', subjects=[1,2,3,4,5,6,7,8]):
+
+    counts_person, counts_not_person = [], []
+    for subj in subjects:
+        df = getSubCatjDf(nsd_coco, subj)
+        pers = filterByCategory(df, category)
+        counts_person.append(pers.shape[0])
+        counts_not_person.append(df.shape[0]-pers.shape[0])
+    
+    x = np.arange(len(subjects))
+    bar_width = 0.35
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bars1 = ax.bar(x - bar_width/2, counts_person, bar_width, label='Person', color='indigo')
+    bars2 = ax.bar(x + bar_width/2, counts_not_person, bar_width, label='Not Person', color='lightblue')
+
+    ax.set_xlabel('Subjects')
+    ax.set_ylabel('Counts')
+    ax.set_title('Count of Person vs Not Person for Each Subject')
+    ax.set_xticks(x)
+    ax.set_xticklabels(subjects, ha='right')
+    ax.legend()
+
+    plt.tight_layout()
+    plt.show()
+    fig.savefig(f'./results/person_per_subj.png')
+
+plot_category_distribution()
 
 # latent vector related
 def visualize_latent_activations(latent_vecs: jnp.ndarray,

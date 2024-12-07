@@ -73,15 +73,18 @@ def getCategoryFromCocoId(nsd_coco, cocoId):
 def getCategoryFromNsdId(nsd_coco, nsdId):
     return nsd_coco[nsd_coco['nsdId'] == nsdId]['categories']
 
-
 def getSharedDf(nsd_coco):
     shared = shared_imgs_df(nsd_coco)
     categories = get_categories_df(shared)
     return shared.merge(categories, on='cocoId')
 
-
 def getSubjDf(nsd_coco, subj_index):
     return getSubjDfs(nsd_coco)[subj_index -1]
+
+def getSubCatjDf(nsd_coco, subj_index):
+    subj = getSubjDf(nsd_coco, subj_index)
+    categories = get_categories_df(subj)
+    return subj.merge(categories, on='cocoId')
 
 def getSubjDfs(nsd_coco):
     return subject_dfs(nsd_coco)
