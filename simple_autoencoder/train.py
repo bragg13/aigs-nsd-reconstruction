@@ -1,5 +1,5 @@
 """Training and evaluation logic."""
-
+import aim
 import models
 from logger import log
 import jax
@@ -151,6 +151,9 @@ def train_and_evaluate(config):
     rng = random.key(0)
     rng, init_key = random.split(rng)
 
+    # initialise AIM run
+    run = aim.Run()
+
     log("Initializing dataset...", "TRAIN")
     rate_reconstruction_printing = 10
     if config.ds == "fmri":
@@ -189,7 +192,6 @@ def train_and_evaluate(config):
     log("\nstarting training", "TRAIN")
     train_mse_losses = []
     train_spa_losses = []
-
     eval_losses = []
 
     print(
@@ -207,6 +209,19 @@ def train_and_evaluate(config):
     checkpointer = ocp.StandardCheckpointer()
     train_step_jit = jax.jit(train_step, static_argnums=3)
     evaluate_fun_jit = jax.jit(evaluate_fun, static_argnums=3)
+
+    # init aim hyperparameters
+    run['hparams'] = {
+        'batch_size': config.batch_size,
+        'learning_rate': config.learning_rate,
+        'latent_dim': config.latent_dim,
+        'sparsity': config.sparsity,
+        'l1': config.l1,
+        'num_epochs': config.num_epochs,
+        'subject': config.subject,
+        'hemisphere': config.hem,
+        'roi_class': config.roi_class,
+    }
 
     for epoch in range(config.num_epochs):
         rng, epoch_key = jax.random.split(rng)
@@ -255,6 +270,8 @@ def train_and_evaluate(config):
 
                 # average the training loss and append it to the list
                 train_mse_losses.append(jnp.mean(jnp.array(tmp_loss)))
+                run.track(jnp.mean(jnp.array(tmp_loss)), name='train_loss')
+                run.track(metrics['mse_loss'], name='validation_loss')
                 tmp_loss = []
 
                 eval_losses.append(metrics["mse_loss"])

@@ -1,8 +1,10 @@
 learning_rate: 1e-4
 batch_size: 32
 latent_dim: 256
-num_epochs: 20
+num_epochs: 40
 sparsity: 0.8
 l1: 0.1
-ds: mnist
-subject: 1
+ds: fmri
+hem: lh
+roi_class: floc-bodies
+subject: 5

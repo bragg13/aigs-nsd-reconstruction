@@ -65,6 +65,10 @@ def load_model_checkpoint(input_shape: Tuple, config, checkpoint_path):
     return restored_state
 
 def inference(state: TrainState, input_data: jnp.ndarray, config):
+    def compute_metrics(recon_x, x, latent_vec, config):
+        mse_loss = jnp.mean(jnp.square(recon_x - x))
+        return mse_loss
+
     # dummy dropout key
     dropout_key = jax.random.PRNGKey(0)
 
@@ -80,6 +84,8 @@ def inference(state: TrainState, input_data: jnp.ndarray, config):
         training=False, # we are doing inference
         mutable=['batch_stats']
     )
+    loss = compute_metrics(reconstructions, input_data, latent_vectors, config)
+    print(loss)
 
     return reconstructions, latent_vectors
 

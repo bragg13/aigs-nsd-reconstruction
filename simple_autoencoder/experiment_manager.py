@@ -131,16 +131,6 @@ class ExperimentManager:
 
 # Example usage:
 if __name__ == "__main__":
-    # Define your base configuration file (config.yaml):
-    """
-    learning_rate: 1e-3
-    batch_size: 32
-    latent_dim: 256
-    num_epochs: 100
-    sparsity: 0.9
-    l1: 0.01
-    """
-
     # Import your training function
     from train import train_and_evaluate
 
@@ -149,13 +139,11 @@ if __name__ == "__main__":
 
     # Define parameter ranges to explore
     param_ranges = {
-        "learning_rate": [1e-4, 1e-5],
-        "subject": [1, 2],
+        "learning_rate": [3e-4, 1e-4],
         "batch_size": [256],
-        "latent_dim": [16, 32],
-        "sparsity": [0.5, 0.8, 0.9],
+        "latent_dim": [32, 64, 100],
+        "sparsity": [0, 0.8, 0.93],
         "l1": [0.01, 0.1],
-        # "ds": ["mnist", "cifar10"],
     }
 
     # Run all experiments
