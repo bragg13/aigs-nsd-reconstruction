@@ -13,8 +13,8 @@ from logger import log
 # %% download the dataset, this is also in nsd_data
 data_dir = '../data'
 subjects = [1,2,3,4,5,6,7,8]
-img = 0
 FSAVERAGE = datasets.fetch_surf_fsaverage('fsaverage')
+
 # the class to load and store data
 class argObj:
   def __init__(self, data_dir, subj):
