@@ -31,9 +31,6 @@ def images_to_nsd_df(subject=3):
     # log(f"total images for subject {subject}: {len(images_to_nsd)}", 'DATA')
     return images_to_nsd
 
-# andrea i'll leave this here, you can restructure as you want, but images_to_nsd is used in get_shared_inidces and get_train_test_indices
-# images_to_nsd = images_to_nsd_df(subject=3)
-
 # %% get indices for the training, test and analysis split
 def get_shared_indices(category: str = 'person', subject: int = 3):
     images_to_nsd = images_to_nsd_df(subject=subject)
