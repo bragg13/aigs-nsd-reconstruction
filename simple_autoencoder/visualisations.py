@@ -149,6 +149,102 @@ def plot_roi_class_subjs(roi_class: str, subjects: list):
 
     fig.savefig(f'./results/subjs-{roi_class}-rois.png', bbox_inches='tight', dpi=150)
 
+# %% data analysis
+from coco_load import getSubCatjDf, filterByCategory, nsd_coco
+
+def plot_category_distribution(category='person', subjects=[1,2,3,4,5,6,7,8]):
+
+    counts_person, counts_not_person = [], []
+    for subj in subjects:
+        df = getSubCatjDf(nsd_coco, subj)
+        pers = filterByCategory(df, category)
+        counts_person.append(pers.shape[0])
+        counts_not_person.append(df.shape[0]-pers.shape[0])
+    
+    x = np.arange(len(subjects))
+    bar_width = 0.35
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bars1 = ax.bar(x - bar_width/2, counts_person, bar_width, label='Person', color='indigo')
+    bars2 = ax.bar(x + bar_width/2, counts_not_person, bar_width, label='Not Person', color='lightblue')
+
+    ax.set_xlabel('Subjects')
+    ax.set_ylabel('Counts')
+    ax.set_title('Count of Person vs Not Person for Each Subject')
+    ax.set_xticks(x)
+    ax.set_xticklabels(subjects, ha='right')
+    ax.legend()
+
+    plt.tight_layout()
+    plt.show()
+    fig.savefig(f'./results/person_per_subj.png')
+
+# %%
+from nsd_data import get_train_test_datasets, get_analysis_datasets
+
+def plot_floc_bodies_values_distribution(split_data, split='train', z_scored=True):
+    # Flatten each subject's arrays into a single list for box plot
+    flattened_data = [arr.flatten() for arr in split_data]
+
+    # fliers styling
+    flierprops = dict(marker='o', markeredgecolor='dimgrey', markersize=2, linestyle='none')
+
+    # make box plot
+    fig = plt.figure(figsize=(10, 6))
+    boxplot_stats = plt.boxplot(flattened_data, patch_artist=True, boxprops=dict(facecolor="lightblue"), flierprops=flierprops)
+
+    plt.xticks(range(1, len(split_data) + 1), [f'Subj {i+1}' for i in range(len(split_data))])
+    plt.title(f"Box plot of 'floc-bodies'-masked {split} data per subject")
+    plt.xlabel("Subjects")
+    plt.ylabel("Z-scored values")
+    plt.show()
+
+    # save figure
+    fig.savefig(f'./results/values_distribution_{split}.png')
+
+    # print box plot values
+    print("Box Plot Values:")
+    for i, data in enumerate(flattened_data):
+        # Get whisker low and high
+        whisker_low = boxplot_stats['whiskers'][2 * i].get_ydata()[1]
+        whisker_high = boxplot_stats['whiskers'][2 * i + 1].get_ydata()[1]
+        
+        # Get median
+        median = boxplot_stats['medians'][i].get_ydata()[0]
+        
+        # Get Q1 and Q3 from the box PathPatch
+        box_coords = boxplot_stats['boxes'][i].get_path().vertices
+        q1 = box_coords[0, 1]  # First vertex's y-coordinate
+        q3 = box_coords[2, 1]  # Third vertex's y-coordinate
+        
+        # Get fliers (outliers)
+        fliers = boxplot_stats['fliers'][i].get_ydata()
+        print(f"Subject {i + 1}:")
+        print(f"flattened length: {len(flattened_data[i])}")
+        print(f"  Whisker low: {whisker_low}")
+        print(f"  Whisker high: {whisker_high}")
+        print(f"  Median: {median}")
+        print(f"  Q1 (25th percentile): {q1}")
+        print(f"  Q3 (75th percentile): {q3}")
+        print(f"  Fliers (Outliers) min, max: {jnp.min(fliers), jnp.max(fliers)}")
+
+# 
+subjects=[1,2,3,4,5,6,7,8]
+trains = list()
+vals = list()
+# analysis = list()
+
+for subj in subjects:
+    train, val = get_train_test_datasets(subj, hem='all')
+    trains.append(train)
+    vals.append(val)
+    print(f'train min, max, avg, len: {jnp.min(train)} {jnp.max(train)} {jnp.average(train)} {len(train)}')
+    print(f'val min, max, avg, len: {jnp.min(val)} {jnp.max(val)} {jnp.average(val)} {len(val)}')
+    # cat, non = get_analysis_datasets('person', subj)
+    # analysis.append(np.concatenate((cat, non), axis=0))
+
+plot_floc_bodies_values_distribution(trains, split='train')
+# plot_floc_bodies_values_distribution(vals, split='validation')
 
 # latent vector related
 def visualize_latent_activations(latent_vecs: jnp.ndarray,
