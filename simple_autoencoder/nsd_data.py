@@ -10,8 +10,6 @@ from jax import random
 from sklearn.model_selection import train_test_split
 from roi import load_roi_data
 
-
-
 # %% track image list indices in dataframe
 def images_to_nsd_df(subject=3):
     # training and test images list, sorted
@@ -198,24 +196,24 @@ def get_batches(fmri, key, batch_size: int):
     return fmri[permutation]
 
 # %% split data into lh and rh
-# split_idx needs to be the len of lh fmri with only roi class, probably different for each subject
-def split_hemispheres(fmri, split_idx=3633):
+def split_hemispheres(fmri, split_idx=19004):
+    """
+    Args: 
+        split_idx (int): length of the subject's lh challenge space. Defaults to 19004 (true for most subjects).
+    """
     return fmri[:, :split_idx], fmri[:, split_idx:]
 
 # %% unmask data to original challenge space
-# mqyabe not really unsmaking but called it that way..
-def unmask_hemisphere(masked, roi_mask, challenge_fmri_shape):
-    unmasked = np.zeros(challenge_fmri_shape)
+def unmask_from_roi_class(subject, masked, roi_class, hem, total_challenge_space_size):
+    roi_data = load_roi_data(subject)
+    if hem == 'all':
+        roi_lh = roi_data['challenge']['lh'][roi_class] > 0
+        roi_rh = roi_data['challenge']['rh'][roi_class] > 0
+        roi_mask = np.concatenate([roi_lh, roi_rh], axis=0)
+    elif hem == 'lh':
+        roi_mask = roi_data['challenge']['lh'][roi_class] > 0
+    elif hem == 'rh':
+        roi_mask = roi_data['challenge']['rh'][roi_class] > 0
+    unmasked = np.zeros((masked.shape[0], total_challenge_space_size))
     unmasked[:, roi_mask] = masked
     return unmasked
-
-# train_all, test_all = get_train_test_datasets(hem="all")
-# lh_masked, rh_masked = split_hemispheres(test_all)
-
-# lh_unmasked = unmask_hemisphere(lh_masked, roi_lh, (819,19004))
-
-# from surf_plot import viewRoiClassValues
-
-# view = viewRoiClassValues(lh_unmasked, 2, 'EBA', 'lh', 'cold_hot')
-# view.open_in_browser()
-# %%

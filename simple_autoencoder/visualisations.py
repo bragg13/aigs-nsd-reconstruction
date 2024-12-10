@@ -4,6 +4,8 @@ import seaborn as sns
 from typing import Tuple, List
 import jax.numpy as jnp
 from surf_plot import plotRoiClassValues, SUBJECTS, plot_img, plotRoiClass
+from nsd_data import split_hemispheres, unmask_from_roi_class
+from typing import Literal
 
 ds_sizes = {
     'mnist': (28, 28),
@@ -50,32 +52,36 @@ def plot_original_reconstruction(originals: jnp.ndarray, reconstructions: jnp.nd
 
     fig.savefig(f'{config.results_folder}/reconstruction_{epoch}.png')
 
-def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, hem, roi_class='floc-bodies', style='infl', cmap='cold_hot', total_surface_size=19004+20544):
+def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, hem: Literal["all", "lh", "rh"], split_idx:int, total_surface_size=19004+20544, roi_class='floc-bodies', style: Literal["flat", "infl", "sphere"]='infl', cmap='cold_hot'):
     """
     Args:
-        style (str, optional): ['infl', 'flat', 'sphere']. Defaults to 'infl'.
-        total_surface_size (int, otpional): sum of lh fmri size and rh fmri size of the subject. Defaults to 19004 + 20544 (true for most subjects).
+        split_idx (int): length of the subject's lh challenge space. Defaults to 19004 (true for most subjects).
+        total_surface_size (int, optional): sum of the lh and rh challenge space length of the subject. Defaults to 19004 + 20544 (true for most subjects).
+        style (Literal, optional): ['infl', 'flat', 'sphere']. Defaults to 'infl'.
     """
-    originals = unmask_from_roi_class(subject, originals, roi_class, hem, (originals.shape[0], 19004))
-    reconstructions = unmask_from_roi_class(subject, reconstructions, roi_class, hem, (reconstructions.shape[0], 19004))
+    # map roi vertices back into seperate lh and rh challenge space
+    originals = unmask_from_roi_class(subject, originals, roi_class, hem, total_surface_size)
+    reconstructions = unmask_from_roi_class(subject, reconstructions, roi_class, hem, total_surface_size)
 
-    originals_lh, originals_rh = split_hemispheres(originals)
-    recon_lh, recon_rh = split_hemispheres(reconstructions)
+    if hem == 'all':
+        originals_lh, originals_rh = split_hemispheres(originals, split_idx)
+        recon_lh, recon_rh = split_hemispheres(reconstructions, split_idx)
 
+    # plot figure
     fig = plt.figure(layout='constrained', figsize=(16, 12))
     fig.suptitle(f'Trained Subject {subject}')
     ogs, recons = fig.subfigures(1, 2, wspace=0.0)
     ogs.suptitle('original')
     recons.suptitle('reconstructed')
 
-    def create_figs(fig):
+    def create_subfigs(fig):
         lh, rh = fig.subfigures(1, 2, wspace=0.0)
         lh.suptitle('left hemisphere')
         rh.suptitle('right hemisphere')
         return lh.subfigures(3, 1, wspace=0, hspace=0.0), rh.subfigures(3, 1, wspace=0.0, hspace=0.0)
 
-    og_lhs, og_rhs = create_figs(ogs)
-    recon_lhs, recon_rhs = create_figs(recons)
+    og_lhs, og_rhs = create_subfigs(ogs)
+    recon_lhs, recon_rhs = create_subfigs(recons)
 
     for i in range(3):
         plotRoiClassValues(subject, fmri=originals_lh, img=i, roi_class=roi_class, hemi='lh', cmap=cmap, style=style, fig=og_lhs[i])
