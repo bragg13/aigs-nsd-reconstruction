@@ -18,7 +18,7 @@ from visualisations import (
     visualize_latent_activations,
     LatentVisualizer,
     plot_losses,
-    plot_original_reconstruction,
+    plot_original_reconstruction_fmri,
 )
 from flax.training import train_state
 from typing import Any
@@ -195,13 +195,14 @@ def train_and_evaluate(config):
     eval_losses = []
 
     print(
-        "Train data stats:", train_loader.min(), train_loader.max(), train_loader.mean()
+        "Train data stats:", train_loader.min(), train_loader.max(), train_loader.mean(), len(train_loader)
     )
     print(
         "Validation data stats:",
         validation_loader.min(),
         validation_loader.max(),
         validation_loader.mean(),
+        len(validation_loader)
     )
 
     # utils for visaulisation and checkpointing
@@ -309,7 +310,7 @@ def train_and_evaluate(config):
         eval_losses,
         steps_per_epoch,
     )
-    plot_original_reconstruction(evaluated_batches, reconstructions, config, epoch)
+    # plot_original_reconstruction_fmri(config.subject, evaluated_batches, reconstructions, config.hem)
     visualize_latent_activations(
         latent_vecs, evaluated_batches, config, epoch
     )

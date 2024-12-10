@@ -14,7 +14,6 @@ from logger import log
 data_dir = '../data'
 subjects = [1,2,3,4,5,6,7,8]
 FSAVERAGE = datasets.fetch_surf_fsaverage('fsaverage')
-
 # the class to load and store data
 class argObj:
   def __init__(self, data_dir, subj):
@@ -87,17 +86,13 @@ def map_fsaverage_resp(subj, fmri, img, roi, hemisphere: str, full_class=False):
         challenge_roi = np.asarray(challenge_roi_class == roi_mapping, dtype=int) # set all other roi ids to 0 (False)
         fsaverage_roi = np.asarray(fsaverage_roi_class == roi_mapping, dtype=int)
         fsvg_roi, ch_roi = fsaverage_roi, challenge_roi
-    
+
     fsaverage_response = np.zeros(len(fsvg_roi))
     fsaverage_response[np.where(fsvg_roi)[0]] = fmri[img, np.where(ch_roi)[0]]
     return fsaverage_response
 
 def view_surf(fsaverage_map, hemi, title: str, cmap, vmax=None, vmin=None, sym_cmap=True):
-    """
-    Arg title should be ROI or ROI class
-    Args:
-        title (str): 
-    """
+    """Arg title should be ROI or ROI class"""
     if hemi == 'lh': hemi = 'left'
     elif hemi == 'rh': hemi = 'right'
     return plotting.view_surf(

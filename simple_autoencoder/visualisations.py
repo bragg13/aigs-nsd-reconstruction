@@ -3,6 +3,9 @@ import numpy as np
 import seaborn as sns
 from typing import Tuple, List
 import jax.numpy as jnp
+from surf_plot import plotRoiClassValues, SUBJECTS, plot_img, plotRoiClass
+from nsd_data import split_hemispheres, unmask_from_roi_class
+from typing import Literal
 
 ds_sizes = {
     'mnist': (28, 28),
@@ -49,10 +52,103 @@ def plot_original_reconstruction(originals: jnp.ndarray, reconstructions: jnp.nd
 
     fig.savefig(f'{config.results_folder}/reconstruction_{epoch}.png')
 
-def plot_original_reconstruction_fmri(originals, reconstructions, results_folder, epoch):
-    # TODO: implement to show the brain surface with the original and reconstructed fmri data
-    # fig.savefig(f'/{results_folder}/reconstruction_{epoch}.png')
-    pass
+def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, hem: Literal["all", "lh", "rh"], lh_chal_space_size=19004, rh_chal_space_size=20544, roi_class='floc-bodies', style: Literal["flat", "infl", "sphere"]='infl', cmap='cold_hot'):
+    """
+    Args:
+        lh_chal_space_size (int, optional): length of the subject's lh challenge space. Defaults to 19004 (true for subjects 1,2,3,4,5,7).
+        rh_chal_space_size (int, optional): length of the subject's rh challenge space. Defaults to 20544 (true for subjects 1,2,3,4,5,7).
+        style (Literal, optional): ['infl', 'flat', 'sphere']. Defaults to 'infl'.
+    """
+    # map roi vertices back into seperate lh and rh challenge space
+    originals = unmask_from_roi_class(subject, originals, roi_class, hem, lh_chal_space_size, rh_chal_space_size)
+    reconstructions = unmask_from_roi_class(subject, reconstructions, roi_class, hem, lh_chal_space_size, rh_chal_space_size)
+
+    if hem == 'all':
+        originals_lh, originals_rh = split_hemispheres(originals, lh_chal_space_size)
+        recon_lh, recon_rh = split_hemispheres(reconstructions, lh_chal_space_size)
+
+    # plot figure
+    fig = plt.figure(layout='constrained', figsize=(16, 12))
+    fig.suptitle(f'Trained Subject {subject}')
+    ogs, recons = fig.subfigures(1, 2, wspace=0.0)
+    ogs.suptitle('original')
+    recons.suptitle('reconstructed')
+
+    def create_subfigs(fig):
+        lh, rh = fig.subfigures(1, 2, wspace=0.0)
+        lh.suptitle('left hemisphere')
+        rh.suptitle('right hemisphere')
+        return lh.subfigures(3, 1, wspace=0, hspace=0.0), rh.subfigures(3, 1, wspace=0.0, hspace=0.0)
+
+    og_lhs, og_rhs = create_subfigs(ogs)
+    recon_lhs, recon_rhs = create_subfigs(recons)
+
+    for i in range(3):
+        plotRoiClassValues(subject, fmri=originals_lh, img=i, roi_class=roi_class, hemi='lh', cmap=cmap, style=style, fig=og_lhs[i])
+        plotRoiClassValues(subject, fmri=originals_rh, img=i, roi_class=roi_class, hemi='rh', cmap=cmap, style=style, fig=og_rhs[i])
+        plotRoiClassValues(subject, fmri=recon_lh, img=i, roi_class=roi_class, hemi='lh', cmap=cmap, style=style, fig=recon_lhs[i])
+        plotRoiClassValues(subject, fmri=recon_rh, img=i, roi_class=roi_class, hemi='rh', cmap=cmap, style=style, fig=recon_rhs[i])
+
+    fig.savefig(f'./results/subj{subject}_ogs_recons.png', bbox_inches='tight', dpi=150)
+
+# %%
+def plot_img_and_fmris(shared_idxs_all, subjects=[1,2,3,4,5], roi_class='floc-bodies'):
+    """Args:
+        shared_idxs_all (dict): is a dictionary mapping subjects to a tuple of the category and non category image indices
+    """
+    img_subj=subjects[0]
+    img_cat, img_non = shared_idxs_all[img_subj]
+    count = len(img_cat) + len(img_non)
+    countSub = len(subjects)
+
+    fig = plt.figure(layout='constrained', figsize=(12, 12))
+    left, right = fig.subfigures(1, 2, wspace=0.0, width_ratios=[1,2])
+    left.suptitle('Stimuli')
+    right.suptitle("Lh and rh fMRI responses")
+
+    fmris = right.subfigures(count, 1, wspace=0.0, hspace=0.02)
+    imgs = left.subfigures(count, 1, hspace=0.02)
+
+    def create_figs(fig):
+        subjs = fig.subfigures(2, countSub, wspace=0.0, hspace=0.0)
+        for i in range(countSub): subjs[0, i].suptitle(f"Subj {subjects[i]}")
+        return subjs
+    subjs = [create_figs(fmri) for fmri in fmris]
+
+    for i, img in enumerate(img_cat):
+        imgs[i].suptitle(f"Category: Person")
+        plot_img(img_subj, img, imgs[i])
+        for j, subId in enumerate(subjects):
+            img = shared_idxs_all[subId][0][i]
+            plotRoiClassValues(subId, SUBJECTS[subId]['lh_fmri'], img, roi_class, 'lh', cmap='cold_hot', style='sphere', fig=subjs[i][0, j])
+            plotRoiClassValues(subId, SUBJECTS[subId]['rh_fmri'], img, roi_class, 'rh', cmap='cold_hot', style='sphere', fig=subjs[i][1, j])
+
+    for i, img in enumerate(img_non):
+        imgs[i+len(img_cat)].suptitle(f"No Person")
+        plot_img(img_subj, img, imgs[i+len(img_cat)])
+        for j, subId in enumerate(subjects):
+            img = shared_idxs_all[subId][1][i]
+            plotRoiClassValues(subId, SUBJECTS[subId]['lh_fmri'], img, roi_class, 'lh', cmap='cold_hot', style='sphere', fig=subjs[i+2][0, j])
+            plotRoiClassValues(subId, SUBJECTS[subId]['rh_fmri'], img, roi_class, 'rh', cmap='cold_hot', style='sphere', fig=subjs[i+2][1, j])
+
+    fig.savefig(f'./results/stimuli-and-fmris-2.png', bbox_inches='tight', dpi=150)
+
+def plot_roi_class_subjs(roi_class: str, subjects: list):
+    fig = plt.figure(layout='constrained', figsize=(16, 12))
+    subj_figs = fig.subfigures(3, 3, wspace=0.0)
+
+    for i, subjId in enumerate(subjects):
+        row = i // 3
+        col = i % 3
+
+        subj_fig = subj_figs[row, col]
+        subj_fig.suptitle(f'Subj {subjId}, lh and rh')
+        lh, rh = subj_fig.subfigures(1,2, wspace=-0.5)
+        plotRoiClass(subjId, roi_class, 'lh', cmap='gist_rainbow', style='infl', fig=lh)
+        plotRoiClass(subjId, roi_class, 'rh', cmap='gist_rainbow', style='infl', fig=rh)
+
+    fig.savefig(f'./results/subjs-{roi_class}-rois.png', bbox_inches='tight', dpi=150)
+
 # %% data analysis
 from coco_load import getSubCatjDf, filterByCategory, nsd_coco
 
@@ -150,7 +246,7 @@ for subj in subjects:
 plot_floc_bodies_values_distribution(trains, split='train')
 # plot_floc_bodies_values_distribution(vals, split='validation')
 
-# %% latent vector related
+# latent vector related
 def visualize_latent_activations(latent_vecs: jnp.ndarray,
                                images: jnp.ndarray,
                                config,

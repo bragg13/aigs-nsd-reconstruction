@@ -1,0 +1,57 @@
+[COCO_LOAD] nsd-coco loaded: 73000 images
+[ANALYSIS] loaded model config
+{'learning_rate': 0.0001, 'latent_dim': 64, 'batch_size': 256, 'num_epochs': 150, 'roi_class': 'floc-bodies', 'hem': 'lh', 'ds': 'fmri', 'sparsity': 0.85, 'l1': 0.1, 'subject': 1, 'results_folder': 'results/subj1/fmri_latent64_sparsity0.85_bs256_lOne0.1'}
+[DATA] creating datasets...
+[ANALYSIS] shared - person - shape: (428, 3411)
+[ANALYSIS] shared - non person - shape: (554, 3411)
+[ANALYSIS] loaded model checkpoint
+0.37369835
+[ANALYSIS] loaded model config
+{'learning_rate': 0.0001, 'latent_dim': 64, 'batch_size': 256, 'num_epochs': 150, 'roi_class': 'floc-bodies', 'hem': 'lh', 'ds': 'fmri', 'sparsity': 0.85, 'l1': 0.1, 'subject': 2, 'results_folder': 'results/subj2/fmri_latent64_sparsity0.85_bs256_lOne0.1'}
+[DATA] creating datasets...
+[ANALYSIS] shared - person - shape: (428, 4117)
+[ANALYSIS] shared - non person - shape: (554, 4117)
+[ANALYSIS] loaded model checkpoint
+0.39135766
+[ANALYSIS] loaded model config
+{'learning_rate': 0.0001, 'latent_dim': 64, 'batch_size': 256, 'num_epochs': 150, 'roi_class': 'floc-bodies', 'hem': 'lh', 'ds': 'fmri', 'sparsity': 0.85, 'l1': 0.1, 'subject': 3, 'results_folder': 'results/subj3/fmri_latent64_sparsity0.85_bs256_lOne0.1'}
+[DATA] creating datasets...
+[ANALYSIS] shared - person - shape: (391, 3633)
+[ANALYSIS] shared - non person - shape: (503, 3633)
+[ANALYSIS] loaded model checkpoint
+0.45684654
+[ANALYSIS] loaded model config
+{'learning_rate': 0.0001, 'latent_dim': 64, 'batch_size': 256, 'num_epochs': 150, 'roi_class': 'floc-bodies', 'hem': 'lh', 'ds': 'fmri', 'sparsity': 0.85, 'l1': 0.1, 'subject': 4, 'results_folder': 'results/subj4/fmri_latent64_sparsity0.85_bs256_lOne0.1'}
+[DATA] creating datasets...
+[ANALYSIS] shared - person - shape: (382, 4325)
+[ANALYSIS] shared - non person - shape: (490, 4325)
+[ANALYSIS] loaded model checkpoint
+0.39890873
+[ANALYSIS] loaded model config
+{'learning_rate': 0.0001, 'latent_dim': 64, 'batch_size': 256, 'num_epochs': 150, 'roi_class': 'floc-bodies', 'hem': 'lh', 'ds': 'fmri', 'sparsity': 0.85, 'l1': 0.1, 'subject': 5, 'results_folder': 'results/subj5/fmri_latent64_sparsity0.85_bs256_lOne0.1'}
+[DATA] creating datasets...
+[ANALYSIS] shared - person - shape: (428, 5114)
+[ANALYSIS] shared - non person - shape: (554, 5114)
+[ANALYSIS] loaded model checkpoint
+0.29837924
+[ANALYSIS] loaded model config
+{'learning_rate': 0.0001, 'latent_dim': 64, 'batch_size': 256, 'num_epochs': 150, 'roi_class': 'floc-bodies', 'hem': 'lh', 'ds': 'fmri', 'sparsity': 0.85, 'l1': 0.1, 'subject': 6, 'results_folder': 'results/subj6/fmri_latent64_sparsity0.85_bs256_lOne0.1'}
+[DATA] creating datasets...
+[ANALYSIS] shared - person - shape: (391, 4607)
+[ANALYSIS] shared - non person - shape: (503, 4607)
+[ANALYSIS] loaded model checkpoint
+0.38898566
+[ANALYSIS] loaded model config
+{'learning_rate': 0.0001, 'latent_dim': 64, 'batch_size': 256, 'num_epochs': 150, 'roi_class': 'floc-bodies', 'hem': 'lh', 'ds': 'fmri', 'sparsity': 0.85, 'l1': 0.1, 'subject': 7, 'results_folder': 'results/subj7/fmri_latent64_sparsity0.85_bs256_lOne0.1'}
+[DATA] creating datasets...
+[ANALYSIS] shared - person - shape: (428, 4295)
+[ANALYSIS] shared - non person - shape: (554, 4295)
+[ANALYSIS] loaded model checkpoint
+0.3320421
+[ANALYSIS] loaded model config
+{'learning_rate': 0.0001, 'latent_dim': 64, 'batch_size': 256, 'num_epochs': 150, 'roi_class': 'floc-bodies', 'hem': 'lh', 'ds': 'fmri', 'sparsity': 0.85, 'l1': 0.1, 'subject': 8, 'results_folder': 'results/subj8/fmri_latent64_sparsity0.85_bs256_lOne0.1'}
+[DATA] creating datasets...
+[ANALYSIS] shared - person - shape: (382, 4056)
+[ANALYSIS] shared - non person - shape: (490, 4056)
+[ANALYSIS] loaded model checkpoint
+0.4161249
