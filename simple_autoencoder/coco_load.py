@@ -75,8 +75,12 @@ def getSharedDf(nsd_coco):
 def getSubjDf(nsd_coco, subj_index):
     return getSubjDfs(nsd_coco)[subj_index -1]
 
+def getSubCatjDf(nsd_coco, subj_index):
+    subj = getSubjDf(nsd_coco, subj_index)
+    categories = get_categories_df(subj)
+    return subj.merge(categories, on='cocoId')
+
 def getSubjDfs(nsd_coco):
     return subject_dfs(nsd_coco)
-
 # %% load nsd_coco dataframe
 nsd_coco = read_and_preprocess()
