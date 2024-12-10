@@ -73,7 +73,7 @@ def z_score(data):
     return normalised
 
 # %% get dataset splits based on indices
-def get_split_masked_datasets(indices, subject, roi_class='floc-bodies', hem: Literal["all", "lh", "rh"]='all') -> tuple:
+def get_split_masked_datasets(indices, subject, roi_class='floc-bodies', hem: Literal["all", "lh", "rh"]='lh') -> tuple:
     """Get training and test fMRI datasets for a specified subject and ROI class.
 
     Args:
@@ -130,7 +130,7 @@ def get_split_masked_datasets(indices, subject, roi_class='floc-bodies', hem: Li
     else:
         raise ValueError(f"Invalid hemisphere selection: {hem}. Must be 'all', 'lh', or 'rh'.")
 
-def get_train_test_datasets(subject, roi_class='floc-bodies', hem: Literal["all", "lh", "rh"]='all') -> tuple:
+def get_train_test_datasets(subject, roi_class='floc-bodies', hem: Literal["all", "lh", "rh"]='lh') -> tuple:
     """
     Args:
         subject (int, optional): The subject ID number (1-8). Defaults to 3.
@@ -143,7 +143,7 @@ def get_train_test_datasets(subject, roi_class='floc-bodies', hem: Literal["all"
     return get_split_masked_datasets(indices, subject, roi_class, hem)
 
 # aka get shared-images fmri data?
-def get_analysis_datasets(category, subject, roi_class='floc-bodies', hem: Literal["all", "lh", "rh"]='all') -> tuple:
+def get_analysis_datasets(category, subject, roi_class='floc-bodies', hem: Literal["all", "lh", "rh"]='lh') -> tuple:
     """
     Args:
         category (str, optional): The coco category. # Defaults to 'person'.
