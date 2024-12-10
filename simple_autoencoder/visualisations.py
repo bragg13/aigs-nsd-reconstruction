@@ -6,6 +6,7 @@ import jax.numpy as jnp
 from surf_plot import plotRoiClassValues, SUBJECTS, plot_img, plotRoiClass
 from nsd_data import split_hemispheres, unmask_from_roi_class
 from typing import Literal
+from logger import log
 
 ds_sizes = {
     'mnist': (28, 28),
@@ -59,6 +60,10 @@ def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, h
         rh_chal_space_size (int, optional): length of the subject's rh challenge space. Defaults to 20544 (true for subjects 1,2,3,4,5,7).
         style (Literal, optional): ['infl', 'flat', 'sphere']. Defaults to 'infl'.
     """
+    # limit to wished amount of samples
+    samples = 3
+    originals, reconstructions = originals[:3], reconstructions[:3]
+
     # map roi vertices back into seperate lh and rh challenge space
     originals = unmask_from_roi_class(subject, originals, roi_class, hem, lh_chal_space_size, rh_chal_space_size)
     reconstructions = unmask_from_roi_class(subject, reconstructions, roi_class, hem, lh_chal_space_size, rh_chal_space_size)
@@ -78,12 +83,12 @@ def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, h
         lh, rh = fig.subfigures(1, 2, wspace=0.0)
         lh.suptitle('left hemisphere')
         rh.suptitle('right hemisphere')
-        return lh.subfigures(3, 1, wspace=0, hspace=0.0), rh.subfigures(3, 1, wspace=0.0, hspace=0.0)
+        return lh.subfigures(samples, 1, wspace=0, hspace=0.0), rh.subfigures(samples, 1, wspace=0.0, hspace=0.0)
 
     og_lhs, og_rhs = create_subfigs(ogs)
     recon_lhs, recon_rhs = create_subfigs(recons)
-
-    for i in range(3):
+    log('Plotting reconstruction on 3D surface...', 'VISUALISATIONS')
+    for i in range(samples):
         plotRoiClassValues(subject, fmri=originals_lh, img=i, roi_class=roi_class, hemi='lh', cmap=cmap, style=style, fig=og_lhs[i])
         plotRoiClassValues(subject, fmri=originals_rh, img=i, roi_class=roi_class, hemi='rh', cmap=cmap, style=style, fig=og_rhs[i])
         plotRoiClassValues(subject, fmri=recon_lh, img=i, roi_class=roi_class, hemi='lh', cmap=cmap, style=style, fig=recon_lhs[i])
@@ -114,7 +119,8 @@ def plot_img_and_fmris(shared_idxs_all, subjects=[1,2,3,4,5], roi_class='floc-bo
         for i in range(countSub): subjs[0, i].suptitle(f"Subj {subjects[i]}")
         return subjs
     subjs = [create_figs(fmri) for fmri in fmris]
-
+    
+    log('Plotting fmris for images...', 'VISUALISATIONS')
     for i, img in enumerate(img_cat):
         imgs[i].suptitle(f"Category: Person")
         plot_img(img_subj, img, imgs[i])
@@ -137,6 +143,7 @@ def plot_roi_class_subjs(roi_class: str, subjects: list):
     fig = plt.figure(layout='constrained', figsize=(16, 12))
     subj_figs = fig.subfigures(3, 3, wspace=0.0)
 
+    log(f'Plotting {roi_class} class for subjects...', 'VISUALISATIONS')
     for i, subjId in enumerate(subjects):
         row = i // 3
         col = i % 3
@@ -182,7 +189,7 @@ def plot_category_distribution(category='person', subjects=[1,2,3,4,5,6,7,8]):
 # %%
 from nsd_data import get_train_test_datasets, get_analysis_datasets
 
-def plot_floc_bodies_values_distribution(split_data, split='train', z_scored=True):
+def plot_floc_bodies_values_distribution(split_data, split='train'):
     # Flatten each subject's arrays into a single list for box plot
     flattened_data = [arr.flatten() for arr in split_data]
 
@@ -228,23 +235,23 @@ def plot_floc_bodies_values_distribution(split_data, split='train', z_scored=Tru
         print(f"  Q3 (75th percentile): {q3}")
         print(f"  Fliers (Outliers) min, max: {jnp.min(fliers), jnp.max(fliers)}")
 
-# 
-subjects=[1,2,3,4,5,6,7,8]
-trains = list()
-vals = list()
-# analysis = list()
+# # 
+# subjects=[1,2,3,4,5,6,7,8]
+# trains = list()
+# vals = list()
+# # analysis = list()
 
-for subj in subjects:
-    train, val = get_train_test_datasets(subj, hem='all')
-    trains.append(train)
-    vals.append(val)
-    print(f'train min, max, avg, len: {jnp.min(train)} {jnp.max(train)} {jnp.average(train)} {len(train)}')
-    print(f'val min, max, avg, len: {jnp.min(val)} {jnp.max(val)} {jnp.average(val)} {len(val)}')
-    # cat, non = get_analysis_datasets('person', subj)
-    # analysis.append(np.concatenate((cat, non), axis=0))
+# for subj in subjects:
+#     train, val = get_train_test_datasets(subj, hem='all')
+#     trains.append(train)
+#     vals.append(val)
+#     print(f'train min, max, avg, len: {jnp.min(train)} {jnp.max(train)} {jnp.average(train)} {len(train)}')
+#     print(f'val min, max, avg, len: {jnp.min(val)} {jnp.max(val)} {jnp.average(val)} {len(val)}')
+#     # cat, non = get_analysis_datasets('person', subj)
+#     # analysis.append(np.concatenate((cat, non), axis=0))
 
-plot_floc_bodies_values_distribution(trains, split='train')
-# plot_floc_bodies_values_distribution(vals, split='validation')
+# plot_floc_bodies_values_distribution(trains, split='train')
+# # plot_floc_bodies_values_distribution(vals, split='validation')
 
 # latent vector related
 def visualize_latent_activations(latent_vecs: jnp.ndarray,

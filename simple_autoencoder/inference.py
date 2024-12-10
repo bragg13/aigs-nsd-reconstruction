@@ -13,10 +13,18 @@ import jaxpruner
 import pathlib
 from logger import log
 from nsd_data import get_analysis_datasets, get_train_test_mnist
-from visualisations import visualize_latent_activations
+from visualisations import visualize_latent_activations, plot_original_reconstruction_fmri
 
 PROJECT_DIR = '/Users/andrea/Desktop/aigs/simple_autoencoder/' # repetition
-
+CHALLENGE_SPACE = {
+    '1': (19004,20544),
+    '2': (19004,20544),
+    '3': (19004,20544),
+    '4': (19004,20544),
+    '5': (19004,20544),
+    '6': (18978,20220),
+    '7': (19004,20544),
+    '8': (18981,20530)}
 
 class TrainState(train_state.TrainState):
     batch_stats: Any
@@ -160,6 +168,15 @@ def main(argv):
         reconstructions[f'subj{subject}']['non_person'] = rec[min_num_person:]
 
         # visualize the results
+        plot_original_reconstruction_fmri(
+            subject, 
+            shared_images, 
+            reconstructions, 
+            hem=model_config['hem'], 
+            lh_chal_space_size=CHALLENGE_SPACE[subject][0],
+            rh_chal_space_size=CHALLENGE_SPACE[subject][1],
+            roi_class=model_config['roi_class']
+        )
         # plot_original_reconstruction(evaluated_batches, reconstructions, config, epoch)
         # visualize_latent_activations(latent_vectors, shared_images, model_config['results_folder'], 'tested')
         # plot_latent_heatmap(latent_vecs, evaluated_batches, config.results_folder,epoch)

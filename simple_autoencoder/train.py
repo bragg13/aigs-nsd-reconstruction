@@ -19,6 +19,7 @@ from visualisations import (
     LatentVisualizer,
     plot_losses,
     plot_original_reconstruction_fmri,
+    plot_floc_bodies_values_distribution
 )
 from flax.training import train_state
 from typing import Any
@@ -168,6 +169,7 @@ def train_and_evaluate(config):
 
     print(f"training ds shape: {train_ds.shape}")
     print(f"test ds shape: {validation_ds.shape}")
+
     key1, key2 = random.split(rng)
     train_loader = get_batches(train_ds, key1, config.batch_size)
     validation_loader = get_batches(validation_ds, key2, config.batch_size)
@@ -316,3 +318,5 @@ def train_and_evaluate(config):
     )
     plot_latent_heatmap(latent_vecs, evaluated_batches, config, epoch)
     visualizer.plot_training_history()
+    plot_floc_bodies_values_distribution(train_ds, 'train')
+    plot_floc_bodies_values_distribution(validation_ds, 'validation')
