@@ -67,13 +67,9 @@ def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, h
     # map roi vertices back into seperate lh and rh challenge space
     originals = unmask_from_roi_class(subject, originals, roi_class, hem, lh_chal_space_size, rh_chal_space_size)
     reconstructions = unmask_from_roi_class(subject, reconstructions, roi_class, hem, lh_chal_space_size, rh_chal_space_size)
-
-    if hem == 'all':
-        originals_lh, originals_rh = split_hemispheres(originals, lh_chal_space_size)
-        recon_lh, recon_rh = split_hemispheres(reconstructions, lh_chal_space_size)
-
+    
     # plot figure
-    fig = plt.figure(layout='constrained', figsize=(16, 12))
+    fig = plt.figure(layout='constrained', figsize=(8, 12))
     fig.suptitle(f'Trained Subject {subject}')
     ogs, recons = fig.subfigures(1, 2, wspace=0.0)
     ogs.suptitle('original')
@@ -84,15 +80,26 @@ def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, h
         lh.suptitle('left hemisphere')
         rh.suptitle('right hemisphere')
         return lh.subfigures(samples, 1, wspace=0, hspace=0.0), rh.subfigures(samples, 1, wspace=0.0, hspace=0.0)
+ 
+    if hem == 'all':
+        originals_lh, originals_rh = split_hemispheres(originals, lh_chal_space_size)
+        recon_lh, recon_rh = split_hemispheres(reconstructions, lh_chal_space_size)
+        og_lhs, og_rhs = create_subfigs(ogs, hem)
+        recon_lhs, recon_rhs = create_subfigs(recons, hem)
+    else:
+        ogs_sub = ogs.subfigures(samples, 1, hspace=0.0)
+        recon_sub = recons.subfigures(samples, 1, hspace=0.0)
 
-    og_lhs, og_rhs = create_subfigs(ogs)
-    recon_lhs, recon_rhs = create_subfigs(recons)
     log('Plotting reconstruction on 3D surface...', 'VISUALISATIONS')
     for i in range(samples):
-        plotRoiClassValues(subject, fmri=originals_lh, img=i, roi_class=roi_class, hemi='lh', cmap=cmap, style=style, fig=og_lhs[i])
-        plotRoiClassValues(subject, fmri=originals_rh, img=i, roi_class=roi_class, hemi='rh', cmap=cmap, style=style, fig=og_rhs[i])
-        plotRoiClassValues(subject, fmri=recon_lh, img=i, roi_class=roi_class, hemi='lh', cmap=cmap, style=style, fig=recon_lhs[i])
-        plotRoiClassValues(subject, fmri=recon_rh, img=i, roi_class=roi_class, hemi='rh', cmap=cmap, style=style, fig=recon_rhs[i])
+        if hem == 'all':
+            plotRoiClassValues(subject, fmri=originals_lh, img=i, roi_class=roi_class, hemi='lh', cmap=cmap, style=style, fig=og_lhs[i])
+            plotRoiClassValues(subject, fmri=originals_rh, img=i, roi_class=roi_class, hemi='rh', cmap=cmap, style=style, fig=og_rhs[i])
+            plotRoiClassValues(subject, fmri=recon_lh, img=i, roi_class=roi_class, hemi='lh', cmap=cmap, style=style, fig=recon_lhs[i])
+            plotRoiClassValues(subject, fmri=recon_rh, img=i, roi_class=roi_class, hemi='rh', cmap=cmap, style=style, fig=recon_rhs[i])
+        else:
+            plotRoiClassValues(subject, fmri=originals, img=i, roi_class=roi_class, hemi=hem, cmap=cmap, style=style, fig=ogs_sub[i])
+            plotRoiClassValues(subject, fmri=reconstructions, img=i, roi_class=roi_class, hemi=hem, cmap=cmap, style=style, fig=recon_sub[i])
 
     fig.savefig(f'./results/subj{subject}_ogs_recons.png', bbox_inches='tight', dpi=150)
 
@@ -235,23 +242,25 @@ def plot_floc_bodies_values_distribution(split_data, split='train'):
         print(f"  Q3 (75th percentile): {q3}")
         print(f"  Fliers (Outliers) min, max: {jnp.min(fliers), jnp.max(fliers)}")
 
-# # 
-# subjects=[1,2,3,4,5,6,7,8]
-# trains = list()
-# vals = list()
-# # analysis = list()
+# plot
+subjects=[1,2,3,4,5,6,7,8]
+trains = list()
+vals = list()
+# analysis = list()
 
-# for subj in subjects:
-#     train, val = get_train_test_datasets(subj, hem='all')
-#     trains.append(train)
-#     vals.append(val)
-#     print(f'train min, max, avg, len: {jnp.min(train)} {jnp.max(train)} {jnp.average(train)} {len(train)}')
-#     print(f'val min, max, avg, len: {jnp.min(val)} {jnp.max(val)} {jnp.average(val)} {len(val)}')
-#     # cat, non = get_analysis_datasets('person', subj)
-#     # analysis.append(np.concatenate((cat, non), axis=0))
+for subj in subjects:
+    train, val = get_train_test_datasets(subj, hem='all')
+    trains.append(train)
+    vals.append(val)
+    # print(f'train min, max, avg, len: {jnp.min(train)} {jnp.max(train)} {jnp.average(train)} {len(train)}')
+    # print(f'val min, max, avg, len: {jnp.min(val)} {jnp.max(val)} {jnp.average(val)} {len(val)}')
+    # cat, non = get_analysis_datasets('person', subj)
+    # analysis.append(np.concatenate((cat, non), axis=0))
 
-# plot_floc_bodies_values_distribution(trains, split='train')
-# # plot_floc_bodies_values_distribution(vals, split='validation')
+plot_floc_bodies_values_distribution(trains, split='train')
+plot_floc_bodies_values_distribution(vals, split='validation')
+
+
 
 # latent vector related
 def visualize_latent_activations(latent_vecs: jnp.ndarray,
