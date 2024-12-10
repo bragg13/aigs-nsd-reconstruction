@@ -52,20 +52,20 @@ def plot_original_reconstruction(originals: jnp.ndarray, reconstructions: jnp.nd
 
     fig.savefig(f'{config.results_folder}/reconstruction_{epoch}.png')
 
-def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, hem: Literal["all", "lh", "rh"], split_idx:int, total_surface_size=19004+20544, roi_class='floc-bodies', style: Literal["flat", "infl", "sphere"]='infl', cmap='cold_hot'):
+def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, hem: Literal["all", "lh", "rh"], lh_chal_space_size=19004, rh_chal_space_size=20544, roi_class='floc-bodies', style: Literal["flat", "infl", "sphere"]='infl', cmap='cold_hot'):
     """
     Args:
-        split_idx (int): length of the subject's lh challenge space. Defaults to 19004 (true for most subjects).
-        total_surface_size (int, optional): sum of the lh and rh challenge space length of the subject. Defaults to 19004 + 20544 (true for most subjects).
+        lh_chal_space_size (int, optional): length of the subject's lh challenge space. Defaults to 19004 (true for subjects 1,2,3,4,5,7).
+        rh_chal_space_size (int, optional): length of the subject's rh challenge space. Defaults to 20544 (true for subjects 1,2,3,4,5,7).
         style (Literal, optional): ['infl', 'flat', 'sphere']. Defaults to 'infl'.
     """
     # map roi vertices back into seperate lh and rh challenge space
-    originals = unmask_from_roi_class(subject, originals, roi_class, hem, total_surface_size)
-    reconstructions = unmask_from_roi_class(subject, reconstructions, roi_class, hem, total_surface_size)
+    originals = unmask_from_roi_class(subject, originals, roi_class, hem, lh_chal_space_size, rh_chal_space_size)
+    reconstructions = unmask_from_roi_class(subject, reconstructions, roi_class, hem, lh_chal_space_size, rh_chal_space_size)
 
     if hem == 'all':
-        originals_lh, originals_rh = split_hemispheres(originals, split_idx)
-        recon_lh, recon_rh = split_hemispheres(reconstructions, split_idx)
+        originals_lh, originals_rh = split_hemispheres(originals, lh_chal_space_size)
+        recon_lh, recon_rh = split_hemispheres(reconstructions, lh_chal_space_size)
 
     # plot figure
     fig = plt.figure(layout='constrained', figsize=(16, 12))

@@ -9,6 +9,7 @@ import coco_load as cl
 from jax import random
 from sklearn.model_selection import train_test_split
 from roi import load_roi_data
+from typing import Literal
 
 # %% track image list indices in dataframe
 def images_to_nsd_df(subject=3):
@@ -72,7 +73,7 @@ def z_score(data):
     return normalised
 
 # %% get dataset splits based on indices
-def get_split_masked_datasets(indices, subject, roi_class='floc-bodies', hem='all') -> tuple:
+def get_split_masked_datasets(indices, subject, roi_class='floc-bodies', hem: Literal["all", "lh", "rh"]='all') -> tuple:
     """Get training and test fMRI datasets for a specified subject and ROI class.
 
     Args:
@@ -129,7 +130,7 @@ def get_split_masked_datasets(indices, subject, roi_class='floc-bodies', hem='al
     else:
         raise ValueError(f"Invalid hemisphere selection: {hem}. Must be 'all', 'lh', or 'rh'.")
 
-def get_train_test_datasets(subject, roi_class='floc-bodies', hem='all') -> tuple:
+def get_train_test_datasets(subject, roi_class='floc-bodies', hem: Literal["all", "lh", "rh"]='all') -> tuple:
     """
     Args:
         subject (int, optional): The subject ID number (1-8). Defaults to 3.
@@ -142,7 +143,7 @@ def get_train_test_datasets(subject, roi_class='floc-bodies', hem='all') -> tupl
     return get_split_masked_datasets(indices, subject, roi_class, hem)
 
 # aka get shared-images fmri data?
-def get_analysis_datasets(category, subject, roi_class='floc-bodies', hem='all') -> tuple:
+def get_analysis_datasets(category, subject, roi_class='floc-bodies', hem: Literal["all", "lh", "rh"]='all') -> tuple:
     """
     Args:
         category (str, optional): The coco category. # Defaults to 'person'.
@@ -204,16 +205,23 @@ def split_hemispheres(fmri, split_idx=19004):
     return fmri[:, :split_idx], fmri[:, split_idx:]
 
 # %% unmask data to original challenge space
-def unmask_from_roi_class(subject, masked, roi_class, hem, total_challenge_space_size):
+def unmask_from_roi_class(subject, masked, roi_class, hem: Literal["all", "lh", "rh"], lh_chal_space_size=19004, rh_chal_space_size=20544):
+    """
+    Args:
+        lh_chal_space_size (int, optional): length of the subject's lh challenge space. Defaults to 19004 (true for subjects 1,2,3,4,5,7).
+        rh_chal_space_size (int, optional): length of the subject's rh challenge space. Defaults to 20544 (true for subjects 1,2,3,4,5,7).
+    """
     roi_data = load_roi_data(subject)
     if hem == 'all':
         roi_lh = roi_data['challenge']['lh'][roi_class] > 0
         roi_rh = roi_data['challenge']['rh'][roi_class] > 0
         roi_mask = np.concatenate([roi_lh, roi_rh], axis=0)
+        unmasked = np.zeros((masked.shape[0], lh_chal_space_size+rh_chal_space_size))
     elif hem == 'lh':
         roi_mask = roi_data['challenge']['lh'][roi_class] > 0
+        unmasked = np.zeros((masked.shape[0], lh_chal_space_size))
     elif hem == 'rh':
         roi_mask = roi_data['challenge']['rh'][roi_class] > 0
-    unmasked = np.zeros((masked.shape[0], total_challenge_space_size))
+        unmasked = np.zeros((masked.shape[0], rh_chal_space_size))
     unmasked[:, roi_mask] = masked
     return unmasked
