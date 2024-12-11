@@ -67,7 +67,7 @@ def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, h
     # map roi vertices back into seperate lh and rh challenge space
     originals = unmask_from_roi_class(subject, originals, roi_class, hem, lh_chal_space_size, rh_chal_space_size)
     reconstructions = unmask_from_roi_class(subject, reconstructions, roi_class, hem, lh_chal_space_size, rh_chal_space_size)
-    
+
     # plot figure
     fig = plt.figure(layout='constrained', figsize=(8, 12))
     fig.suptitle(f'Trained Subject {subject}')
@@ -80,7 +80,7 @@ def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, h
         lh.suptitle('left hemisphere')
         rh.suptitle('right hemisphere')
         return lh.subfigures(samples, 1, wspace=0, hspace=0.0), rh.subfigures(samples, 1, wspace=0.0, hspace=0.0)
- 
+
     if hem == 'all':
         originals_lh, originals_rh = split_hemispheres(originals, lh_chal_space_size)
         recon_lh, recon_rh = split_hemispheres(reconstructions, lh_chal_space_size)
@@ -126,7 +126,7 @@ def plot_img_and_fmris(shared_idxs_all, subjects=[1,2,3,4,5], roi_class='floc-bo
         for i in range(countSub): subjs[0, i].suptitle(f"Subj {subjects[i]}")
         return subjs
     subjs = [create_figs(fmri) for fmri in fmris]
-    
+
     log('Plotting fmris for images...', 'VISUALISATIONS')
     for i, img in enumerate(img_cat):
         imgs[i].suptitle(f"Category: Person")
@@ -174,7 +174,7 @@ def plot_category_distribution(category='person', subjects=[1,2,3,4,5,6,7,8]):
         pers = filterByCategory(df, category)
         counts_person.append(pers.shape[0])
         counts_not_person.append(df.shape[0]-pers.shape[0])
-    
+
     x = np.arange(len(subjects))
     bar_width = 0.35
 
@@ -222,15 +222,15 @@ def plot_floc_bodies_values_distribution(split_data, split='train'):
         # Get whisker low and high
         whisker_low = boxplot_stats['whiskers'][2 * i].get_ydata()[1]
         whisker_high = boxplot_stats['whiskers'][2 * i + 1].get_ydata()[1]
-        
+
         # Get median
         median = boxplot_stats['medians'][i].get_ydata()[0]
-        
+
         # Get Q1 and Q3 from the box PathPatch
         box_coords = boxplot_stats['boxes'][i].get_path().vertices
         q1 = box_coords[0, 1]  # First vertex's y-coordinate
         q3 = box_coords[2, 1]  # Third vertex's y-coordinate
-        
+
         # Get fliers (outliers)
         fliers = boxplot_stats['fliers'][i].get_ydata()
         print(f"Subject {i + 1}:")
@@ -241,25 +241,6 @@ def plot_floc_bodies_values_distribution(split_data, split='train'):
         print(f"  Q1 (25th percentile): {q1}")
         print(f"  Q3 (75th percentile): {q3}")
         print(f"  Fliers (Outliers) min, max: {jnp.min(fliers), jnp.max(fliers)}")
-
-# plot
-subjects=[1,2,3,4,5,6,7,8]
-trains = list()
-vals = list()
-# analysis = list()
-
-for subj in subjects:
-    train, val = get_train_test_datasets(subj, hem='all')
-    trains.append(train)
-    vals.append(val)
-    # print(f'train min, max, avg, len: {jnp.min(train)} {jnp.max(train)} {jnp.average(train)} {len(train)}')
-    # print(f'val min, max, avg, len: {jnp.min(val)} {jnp.max(val)} {jnp.average(val)} {len(val)}')
-    # cat, non = get_analysis_datasets('person', subj)
-    # analysis.append(np.concatenate((cat, non), axis=0))
-
-plot_floc_bodies_values_distribution(trains, split='train')
-plot_floc_bodies_values_distribution(vals, split='validation')
-
 
 
 # latent vector related

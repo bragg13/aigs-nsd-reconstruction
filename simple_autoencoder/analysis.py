@@ -140,37 +140,45 @@ plt.show()
 #
 
 # %%
+import jax
+from sklearn.preprocessing import StandardScaler
+rng = jax.random.PRNGKey(0)
+n_samples = 382
+n_features = 32
+
 from sklearn.manifold import TSNE
 fig, axs = plt.subplots(4, 2, figsize=(12, 15))
 pca = TSNE(n_components=2)
 i = 0
 j = 0
 for subj in subjects:
-    person_vecs = latent_vectors[f'subj{subj}']['person']
-    not_person_vecs = latent_vectors[f'subj{subj}']['not_person']
-    p = pca.fit_transform(StandardScaler().fit_transform(person_vecs))
-    np = pca.fit_transform(StandardScaler().fit_transform(not_person_vecs))
-    # p = (p - p.mean()) / p.max()
-    # np = (np - np.mean()) / np.max()
-    axs[i, j].scatter(p[:, 0], p[:, 1], color='red', alpha=0.7)
-    axs[i, j].scatter(np[:, 0], np[:, 1], color='blue', alpha=0.7)
+    # person_vecs = latent_vectors[f'subj{subj}']['person']
+    # not_person_vecs = latent_vectors[f'subj{subj}']['not_person']
+    key1, key2 = jax.random.split(rng)
+    random_data1 = jax.random.normal(key1, (n_samples, n_features))
+    random_data2 = jax.random.normal(key2, (n_samples, n_features))
+    p = pca.fit_transform(StandardScaler().fit_transform(random_data1))
+    np = pca.fit_transform(StandardScaler().fit_transform(random_data2))
+    axs[i, j].scatter(p[:, 0], p[:, 1], label='person', color='red', alpha=0.7)
+    axs[i, j].scatter(np[:, 0], np[:, 1], label='non person', color='blue', alpha=0.7)
     axs[i, j].grid(True)
-    significant = 'p<0.05' if float(pvals[subj-1]) < 0.05 else 'p>0.05'
-    axs[i, j].set_title(f'subj{subj} ({significant})')
+    axs[i, j].legend()
+    # significant = 'p<0.05' if float(pvals[subj-1]) < 0.05 else 'p>0.05'
+    # axs[i, j].set_title(f'subj{subj} ({significant})')
     i += 1
     if i == 4:
         i = 0
         j = 1
 
 
-plt.suptitle(f"TSNE Representation of Data - {RUN}")
-plt.savefig(f'{PROJECT_DIR}results/shared/{RUN}/tsne.png')
+plt.suptitle(f"TSNE Representation of null Data - {RUN}")
+plt.savefig(f'{PROJECT_DIR}results/shared/{RUN}/tsne_null.png')
 plt.show()
 
 # %%
 import umap
 fig, axs = plt.subplots(4, 2, figsize=(12, 15))
-umap_reducer = umap.UMAP(n_components=2, n_neighbors=15, min_dist=0.1)
+umap_reducer = umap.UMAP(n_components=2, n_neighbors=50, min_dist=0.1)
 i = 0
 j = 0
 for subj in subjects:
@@ -180,9 +188,10 @@ for subj in subjects:
     np = umap_reducer.fit_transform(StandardScaler().fit_transform(not_person_vecs))
     p = (p - p.mean()) / p.max()
     np = (np - np.mean()) / np.max()
-    axs[i, j].scatter(p[:, 0], p[:, 1], color='red', alpha=0.7)
-    axs[i, j].scatter(np[:, 0], np[:, 1], color='blue', alpha=0.7)
+    axs[i, j].scatter(p[:, 0], p[:, 1], label='person', color='red', alpha=0.7)
+    axs[i, j].scatter(np[:, 0], np[:, 1], label='non person', color='blue', alpha=0.7)
     axs[i, j].grid(True)
+    axs[i, j].legend()
     significant = 'p<0.05' if float(pvals[subj-1]) < 0.05 else 'p>0.05'
     axs[i, j].set_title(f'subj{subj} ({significant})')
     i += 1
@@ -196,22 +205,55 @@ plt.suptitle(f"UMAP Representation of Data - {RUN}")
 plt.savefig(f'{PROJECT_DIR}results/shared/{RUN}/umap.png')
 plt.show()
 
+# %% UMAP random value
+import jax
+import umap
+from sklearn.preprocessing import StandardScaler
+n_samples = 382
+n_features = 32
+rng = jax.random.PRNGKey(0)
+
+fig, axs = plt.subplots(4, 2, figsize=(12, 15))
+umap_reducer = umap.UMAP(n_components=2, n_neighbors=50, min_dist=0.1)
+i = 0
+j = 0
+for subj in subjects:
+    key1, key2 = jax.random.split(rng)
+    random_data1 = jax.random.normal(key1, (n_samples, n_features))
+    random_data2 = jax.random.normal(key2, (n_samples, n_features))
+    p = umap_reducer.fit_transform(StandardScaler().fit_transform(random_data1))
+    np = umap_reducer.fit_transform(StandardScaler().fit_transform(random_data2))
+    axs[i, j].scatter(p[:, 0], p[:, 1], label='person', color='red', alpha=0.7)
+    axs[i, j].scatter(np[:, 0], np[:, 1], label='non person', color='blue', alpha=0.7)
+    axs[i, j].grid(True)
+    axs[i, j].legend()
+    i += 1
+    if i == 4:
+        i = 0
+        j = 1
+
+
+plt.suptitle(f"UMAP Representation of Null data - {RUN}")
+# plt.savefig('pca_hsparse32.png')
+plt.savefig(f'{PROJECT_DIR}results/shared/{RUN}/umap_null.png')
+plt.show()
 # %%
 
 fig, axs = plt.subplots(4, 2, figsize=(12, 15))
 i = 0
 j = 0
+low_lim, high_lim = 0, 0
 for subj in subjects:
     person_vec = latent_vectors[f'subj{subj}']['person'][0]
-    # not_person_vec = latent_vectors[f'subj{subj}']['not_person'][0]
 
     # Show latent activations as bar plot
     axs[i, j].bar(range(len(person_vec)), person_vec)
-    axs[i, j].set_ylim([person_vec.min(), person_vec.max()])
+    if person_vec.min() < low_lim:
+        low_lim = person_vec.min()
+    if person_vec.max() > high_lim:
+        high_lim = person_vec.max()
     axs[i, j].set_title(f'Latent Vector {i+1}')
 
-    # axs[i, j].scatter(p[:, 0], p[:, 1], color='red', alpha=0.7)
-    # axs[i, j].scatter(np[:, 0], np[:, 1], color='blue', alpha=0.7)
     axs[i, j].grid(True)
     axs[i, j].set_title(f'subj{subj}')
     i += 1
@@ -219,6 +261,9 @@ for subj in subjects:
         i = 0
         j = 1
 
+for i in range(4):
+    for j in range(2):
+        axs[i, j].set_ylim([low_lim, high_lim])
 
 fig.savefig(f'{PROJECT_DIR}results/shared/{RUN}/latent_vector_1stimage.png')
 plt.suptitle(f"Bar plots for first image latent_vector among subjects")
