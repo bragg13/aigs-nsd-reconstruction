@@ -69,7 +69,8 @@ def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, h
     reconstructions = unmask_from_roi_class(subject, reconstructions, roi_class, hem, lh_chal_space_size, rh_chal_space_size)
 
     # plot figure
-    fig = plt.figure(layout='constrained', figsize=(8, 12))
+    width = 16 if hem == 'all' else 8
+    fig = plt.figure(layout='constrained', figsize=(width, 12))
     fig.suptitle(f'Trained Subject {subject}')
     ogs, recons = fig.subfigures(1, 2, wspace=0.0)
     ogs.suptitle('original')
@@ -103,7 +104,7 @@ def plot_original_reconstruction_fmri(subject:int, originals, reconstructions, h
 
     fig.savefig(f'./results/subj{subject}_ogs_recons.png', bbox_inches='tight', dpi=150)
 
-# %%
+# data analysis
 def plot_img_and_fmris(shared_idxs_all, subjects=[1,2,3,4,5], roi_class='floc-bodies'):
     """Args:
         shared_idxs_all (dict): is a dictionary mapping subjects to a tuple of the category and non category image indices
@@ -163,7 +164,6 @@ def plot_roi_class_subjs(roi_class: str, subjects: list):
 
     fig.savefig(f'./results/subjs-{roi_class}-rois.png', bbox_inches='tight', dpi=150)
 
-# %% data analysis
 from coco_load import getSubCatjDf, filterByCategory, nsd_coco
 
 def plot_category_distribution(category='person', subjects=[1,2,3,4,5,6,7,8]):
@@ -193,11 +193,8 @@ def plot_category_distribution(category='person', subjects=[1,2,3,4,5,6,7,8]):
     plt.show()
     fig.savefig(f'./results/person_per_subj.png')
 
-# %%
-from nsd_data import get_train_test_datasets, get_analysis_datasets
-
-def plot_floc_bodies_values_distribution(split_data, split='train'):
-    # Flatten each subject's arrays into a single list for box plot
+def plot_floc_bodies_values_distribution(split_data, split='train', fliers=False):
+    # Flatten each subject's arrays into a single vector for box plot
     flattened_data = [arr.flatten() for arr in split_data]
 
     # fliers styling
@@ -205,12 +202,12 @@ def plot_floc_bodies_values_distribution(split_data, split='train'):
 
     # make box plot
     fig = plt.figure(figsize=(10, 6))
-    boxplot_stats = plt.boxplot(flattened_data, patch_artist=True, boxprops=dict(facecolor="lightblue"), flierprops=flierprops)
-
-    plt.xticks(range(1, len(split_data) + 1), [f'Subj {i+1}' for i in range(len(split_data))])
-    plt.title(f"Box plot of 'floc-bodies'-masked {split} data per subject")
+    boxplot_stats = plt.boxplot(flattened_data, patch_artist=True, boxprops=dict(facecolor="lightblue"), flierprops=flierprops, showfliers=fliers)
+    plt.ylim(-15,15) if fliers else plt.ylim(-3,3)
+    plt.xticks(range(1, len(split_data) + 1))
+    plt.title(f"Box plot of 'floc-bodies' data per subject, {split}")
     plt.xlabel("Subjects")
-    plt.ylabel("Z-scored values")
+    plt.ylabel("Values")
     plt.show()
 
     # save figure
@@ -228,20 +225,18 @@ def plot_floc_bodies_values_distribution(split_data, split='train'):
 
         # Get Q1 and Q3 from the box PathPatch
         box_coords = boxplot_stats['boxes'][i].get_path().vertices
-        q1 = box_coords[0, 1]  # First vertex's y-coordinate
-        q3 = box_coords[2, 1]  # Third vertex's y-coordinate
+        q1 = box_coords[0, 1] 
+        q3 = box_coords[2, 1]
 
         # Get fliers (outliers)
-        fliers = boxplot_stats['fliers'][i].get_ydata()
+        if fliers: outliers = boxplot_stats['fliers'][i].get_ydata()
         print(f"Subject {i + 1}:")
-        print(f"flattened length: {len(flattened_data[i])}")
         print(f"  Whisker low: {whisker_low}")
         print(f"  Whisker high: {whisker_high}")
         print(f"  Median: {median}")
         print(f"  Q1 (25th percentile): {q1}")
         print(f"  Q3 (75th percentile): {q3}")
-        print(f"  Fliers (Outliers) min, max: {jnp.min(fliers), jnp.max(fliers)}")
-
+        if fliers: print(f"  Fliers (Outliers) min, max: {jnp.min(outliers), jnp.max(outliers)}")
 
 # latent vector related
 def visualize_latent_activations(latent_vecs: jnp.ndarray,
