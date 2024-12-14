@@ -1,5 +1,5 @@
-# aigs-nsd-reconstruction
-AIGS final project repository
+# Neuroscience meets ML
+Artificial Intelligence for Games and Simulations - final project repository
 
 # How to run
 1. Install python version 3.11.10
